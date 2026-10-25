@@ -60,6 +60,3 @@ export function subscribeToCloudData(callback: (data: any) => void) {
     }
   );
 }
-```[cite: 12]
-
-Paste this into `src/cloudStorage.ts` on GitHub and commit the changes[cite: 2]. Once deployed, your app will automatically connect to Firebase[cite: 2, 12].

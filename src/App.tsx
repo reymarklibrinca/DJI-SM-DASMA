@@ -1,4 +1,3 @@
-import { supabase } from './supabase';
 import React, { useState, useRef } from 'react';
 import { useDjiStore, ActiveTab } from './hooks/useDjiStore';
 import { Header } from './components/Header';
@@ -40,6 +39,7 @@ export default function App() {
       {/* App Header */}
       <Header
         todayOffset={store.todayDayOffset}
+        cloudSyncStatus={store.cloudSyncStatus}
         pulseMetrics={store.pulseMetrics}
         onUpdateDailyGoal={store.updateDailyGoal}
         onExport={store.exportDataJSON}

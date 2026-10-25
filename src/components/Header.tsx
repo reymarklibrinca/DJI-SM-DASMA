@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from '../utils/calculations';
 
 interface HeaderProps {
   todayOffset: number;
+  cloudSyncStatus?: 'connected' | 'syncing' | 'offline' | 'loading';
   pulseMetrics: {
     score: number;
     statusText: string;
@@ -32,6 +33,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   todayOffset,
+  cloudSyncStatus = 'connected',
   pulseMetrics,
   onUpdateDailyGoal,
   onExport,
@@ -72,13 +74,39 @@ export const Header: React.FC<HeaderProps> = ({
               DJI
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">
                   Store Sales
                 </h1>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                   SM Dasmariñas
                 </span>
+                {cloudSyncStatus === 'connected' && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200" title="Connected to Firebase Realtime Database">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span>Firebase Live</span>
+                  </span>
+                )}
+                {cloudSyncStatus === 'syncing' && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200" title="Saving updates to Firebase">
+                    <span className="animate-spin h-2 w-2 border-2 border-blue-600 border-t-transparent rounded-full"></span>
+                    <span>Syncing...</span>
+                  </span>
+                )}
+                {cloudSyncStatus === 'loading' && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                    <span className="h-2 w-2 rounded-full bg-slate-400 animate-pulse"></span>
+                    <span>Connecting...</span>
+                  </span>
+                )}
+                {cloudSyncStatus === 'offline' && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200" title="Using local browser storage">
+                    <span>⚠️ Local Mode</span>
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
                 <span>{greeting}</span>
