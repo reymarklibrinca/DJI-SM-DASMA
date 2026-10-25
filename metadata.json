@@ -1,0 +1,7 @@
+{
+  "name": "Operator Hub – DJI Store Tracking",
+  "description": "Retail operations, sales tracking, serialized inventory, lead conversions, and staff performance for DJI Store SM Dasmariñas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
