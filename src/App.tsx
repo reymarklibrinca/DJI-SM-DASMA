@@ -1,3 +1,4 @@
+import { supabase } from './supabase';
 import React, { useState, useRef } from 'react';
 import { useDjiStore, ActiveTab } from './hooks/useDjiStore';
 import { Header } from './components/Header';
