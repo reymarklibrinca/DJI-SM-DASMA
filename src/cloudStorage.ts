@@ -1,76 +1,65 @@
-// Define the shape of your DJI Store Tracking Data
-export interface DjiStoreBackup {
-  sales: any[];
-  tasks: Record<string, any>;
-  leads: Record<string, any>;
-  final: Record<string, any>;
-  goal: number;
-  pm: Record<string, number>;
-}
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getDatabase, ref, get, set, onValue } from 'firebase/database';
 
-const BIN_ID = import.meta.env.VITE_JSONBIN_BIN_ID;
-const API_KEY = import.meta.env.VITE_JSONBIN_KEY;
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDFECXpMU-iTNCv47cd23pn_TXszPzDCDO",
+  authDomain: "djidasma.firebaseapp.com",
+  databaseURL: "https://djidasma-default-rtdb.firebaseio.com",
+  projectId: "djidasma",
+  storageBucket: "djidasma.appspot.com",
+};
+
+// Initialize Firebase (prevent re-initializing if already active)
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const storeRef = ref(db, 'store_data');
 
 /**
- * Downloads the latest store backup from JSONBin
+ * 1. Fetch latest store data once
  */
-export async function fetchCloudData(): Promise<DjiStoreBackup | null> {
-  if (!BIN_ID || !API_KEY) {
-    console.warn("JSONBin credentials missing. Check Vercel Environment Variables.");
-    return null;
-  }
-
+export async function fetchCloudData() {
   try {
-    // Add cache: 'no-store' to ensure devices don't serve stale cached responses
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-      method: 'GET',
-      headers: {
-        'X-Master-Key': API_KEY,
-      },
-      cache: 'no-store',
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`JSONBin fetch error (${res.status}): ${errorText}`);
+    const snapshot = await get(storeRef);
+    if (snapshot.exists()) {
+      return snapshot.val();
     }
-
-    const json = await res.json();
-    return json.record as DjiStoreBackup;
+    return null;
   } catch (err) {
-    console.error('Error reading cloud data:', err);
+    console.error('Firebase read error:', err);
     return null;
   }
 }
 
 /**
- * Uploads the updated store data to JSONBin
+ * 2. Save store data directly to Firebase
  */
-export async function saveCloudData(data: DjiStoreBackup): Promise<boolean> {
-  if (!BIN_ID || !API_KEY) {
-    console.warn("JSONBin credentials missing. Check Vercel Environment Variables.");
-    return false;
-  }
-
+export async function saveCloudData(data: any) {
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': API_KEY,
-        'X-Bin-Versioning': 'false', // Keeps single current record without piling version counts
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`JSONBin save error (${res.status}): ${errorText}`);
-    }
-
+    await set(storeRef, data);
     return true;
   } catch (err) {
-    console.error('Error saving cloud data:', err);
+    console.error('Firebase save error:', err);
     return false;
   }
 }
+
+/**
+ * 3. Real-time live listener (auto-syncs between devices without page refresh)
+ */
+export function subscribeToCloudData(callback: (data: any) => void) {
+  return onValue(
+    storeRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        callback(snapshot.val());
+      }
+    },
+    (error) => {
+      console.error('Firebase subscription error:', error);
+    }
+  );
+}
+```[cite: 12]
+
+Paste this into `src/cloudStorage.ts` on GitHub and commit the changes[cite: 2]. Once deployed, your app will automatically connect to Firebase[cite: 2, 12].
