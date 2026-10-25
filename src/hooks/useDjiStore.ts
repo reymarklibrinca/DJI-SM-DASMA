@@ -27,6 +27,29 @@ const defaultLocalState: LocalStorageState = {
   pm: { 0: 2400000, 1: 2400000, 2: 2400000 }, // Christian, Donna, Jobert
 };
 
+useEffect(() => {
+  async function loadDataOnStartup() {
+    try {
+      // 1. Download your record from JSONBin
+      const cloudData = await fetchCloudData();
+
+      // 2. If valid data came back, populate the app's state
+      if (cloudData) {
+        if (Array.isArray(cloudData.sales)) setSales(cloudData.sales);
+        if (cloudData.tasks) setTasks(cloudData.tasks);
+        if (cloudData.leads) setLeads(cloudData.leads);
+        if (cloudData.final) setFinal(cloudData.final);
+        if (typeof cloudData.goal === 'number') setGoal(cloudData.goal);
+        if (cloudData.pm) setPm(cloudData.pm);
+      }
+    } catch (err) {
+      console.error('Failed to load startup data from JSONBin:', err);
+    }
+  }
+
+  loadDataOnStartup();
+}, []); // <--- The empty brackets [] mean: run ONCE when app opens
+
 export type ActiveTab = 'd' | 'b' | 't' | 'y' | 'r' | 's' | 'p' | 'l' | 'i' | 'c' | 'k';
 
 export function useDjiStore() {
