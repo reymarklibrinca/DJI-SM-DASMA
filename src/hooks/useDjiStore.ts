@@ -1,5 +1,5 @@
 import { fetchCloudData, saveCloudData } from '../cloudStorage';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { DJI_DATA, ROUTINE_TASKS } from '../data/initialData';
 import {
   LocalStorageState,
@@ -26,29 +26,6 @@ const defaultLocalState: LocalStorageState = {
   goal: 232258, // Daily target in PHP
   pm: { 0: 2400000, 1: 2400000, 2: 2400000 }, // Christian, Donna, Jobert
 };
-
-useEffect(() => {
-  async function loadDataOnStartup() {
-    try {
-      // 1. Download your record from JSONBin
-      const cloudData = await fetchCloudData();
-
-      // 2. If valid data came back, populate the app's state
-      if (cloudData) {
-        if (Array.isArray(cloudData.sales)) setSales(cloudData.sales);
-        if (cloudData.tasks) setTasks(cloudData.tasks);
-        if (cloudData.leads) setLeads(cloudData.leads);
-        if (cloudData.final) setFinal(cloudData.final);
-        if (typeof cloudData.goal === 'number') setGoal(cloudData.goal);
-        if (cloudData.pm) setPm(cloudData.pm);
-      }
-    } catch (err) {
-      console.error('Failed to load startup data from JSONBin:', err);
-    }
-  }
-
-  loadDataOnStartup();
-}, []); // <--- The empty brackets [] mean: run ONCE when app opens
 
 export type ActiveTab = 'd' | 'b' | 't' | 'y' | 'r' | 's' | 'p' | 'l' | 'i' | 'c' | 'k';
 
@@ -79,6 +56,10 @@ export function useDjiStore() {
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [reviewDayOffset, setReviewDayOffset] = useState<number | null>(null);
 
+  // Cloud Sync flags and debounce timer
+  const [isCloudLoaded, setIsCloudLoaded] = useState<boolean>(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Sync to localStorage on state change
   const saveToStorage = useCallback((state: LocalStorageState) => {
     try {
@@ -87,6 +68,52 @@ export function useDjiStore() {
       console.error('Failed to save to localStorage:', e);
     }
   }, []);
+
+  // 1. STARTUP: Load latest data from JSONBin on app start
+  useEffect(() => {
+    async function loadDataOnStartup() {
+      try {
+        const cloudData = await fetchCloudData();
+        if (cloudData) {
+          const validatedState: LocalStorageState = {
+            sales: Array.isArray(cloudData.sales) ? cloudData.sales : [],
+            tasks: cloudData.tasks || {},
+            leads: cloudData.leads || {},
+            final: cloudData.final || {},
+            goal: typeof cloudData.goal === 'number' ? cloudData.goal : defaultLocalState.goal,
+            pm: cloudData.pm || defaultLocalState.pm,
+          };
+          setLocalData(validatedState);
+          saveToStorage(validatedState);
+        }
+      } catch (err) {
+        console.error('Failed to load startup data from JSONBin:', err);
+      } finally {
+        setIsCloudLoaded(true);
+      }
+    }
+
+    loadDataOnStartup();
+  }, [saveToStorage]);
+
+  // 2. AUTO-SAVE: Push any state updates back to JSONBin (debounced 800ms)
+  useEffect(() => {
+    if (!isCloudLoaded) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      await saveCloudData(localData);
+    }, 800);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [localData, isCloudLoaded]);
 
   // Combined sales (static + local)
   const allSales = useMemo<SaleTuple[]>(() => {
@@ -133,7 +160,6 @@ export function useDjiStore() {
       serialNumber?: string,
       leadType?: number
     ): { success: boolean; message: string } => {
-      // Check if day is finalized
       if (localData.final[dayOffset]) {
         return {
           success: false,
@@ -141,7 +167,6 @@ export function useDjiStore() {
         };
       }
 
-      // Check Serial Number validity if provided
       const cleanSn = serialNumber?.trim().toUpperCase();
       let resolvedSeriesIdx = productSeriesIndex;
       let resolvedAmount = amount;
@@ -149,7 +174,6 @@ export function useDjiStore() {
       if (cleanSn) {
         const unit = unitsMap.get(cleanSn);
         if (unit) {
-          // Guarantee that the unit's actual series is recorded, avoiding accidental ACCESSORIES
           const actualSeriesIdx = DJI_DATA.ser.indexOf(unit[3]);
           if (actualSeriesIdx >= 0) {
             resolvedSeriesIdx = actualSeriesIdx;
@@ -163,9 +187,7 @@ export function useDjiStore() {
           unit && (unit[3] === 'ACCESSORIES' || unit[3] === 'CARE REFRESH');
 
         if (!isPlain) {
-          // Check static sold
           const staticSold = DJI_DATA.sold[cleanSn];
-          // Check local sales
           const localSold = localData.sales.find((s) => s[6]?.toUpperCase() === cleanSn);
           const isMarkedSold = unit && unit[4] === 'SOLD';
 
@@ -232,7 +254,7 @@ export function useDjiStore() {
     [localData.sales, localData.final, saveToStorage]
   );
 
-  // Add Lead (+1 Walk-in, Revisit, Online)
+  // Add Lead
   const addLead = useCallback(
     (dayOffset: number, staffIndex: number | string, leadType: 0 | 1 | 2) => {
       if (localData.final[dayOffset]) {
@@ -340,7 +362,7 @@ export function useDjiStore() {
     [localData.final, saveToStorage]
   );
 
-  // Reset All Leads across entire store
+  // Reset All Leads
   const resetAllLeads = useCallback((): { success: boolean; message: string } => {
     setLocalData((prev) => {
       const updated = {
@@ -487,10 +509,8 @@ export function useDjiStore() {
       const q = query.trim().toUpperCase();
       if (!q) return null;
 
-      // Exact match
       let exact = unitsMap.get(q);
 
-      // Suffix search (at least 3 characters) or partial match (at least 4 characters)
       let matches: UnitTuple[] = [];
       if (!exact) {
         if (q.length >= 3) {
@@ -507,7 +527,6 @@ export function useDjiStore() {
             return sn.includes(q) || ean.includes(q);
           });
         }
-        // Prioritize in-stock units first
         matches.sort((a, b) => (a[4] === 'IN STOCK' ? 0 : 1) - (b[4] === 'IN STOCK' ? 0 : 1));
 
         if (matches.length === 1) {
@@ -563,7 +582,6 @@ export function useDjiStore() {
     const prev = aggregateSales(allSales, periodRange.pa, periodRange.pb);
     const dailyTarget = localData.goal || 232258;
 
-    // Today's revenue
     const todaySalesAgg = aggregateSales(allSales, todayDayOffset, todayDayOffset);
     const todayRevenue = todaySalesAgg.sa;
     const todayAchievementPct = Math.min(100, (todayRevenue / dailyTarget) * 100);
