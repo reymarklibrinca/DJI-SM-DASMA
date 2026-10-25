@@ -432,7 +432,8 @@ export function categorizeMainPushModel(s: SaleTuple): string | null {
 export function calculateMainPushBreakdown(
   sales: SaleTuple[],
   staffList: string[] = DJI_DATA.staff,
-  monthNum: number = 9 // 9 = October
+  monthNum: number = 9, // 9 = October
+  customTargets?: Record<string, number>
 ): {
   categories: MainPushCategoryBreakdown[];
   totalStoreTarget: number;
@@ -448,13 +449,14 @@ export function calculateMainPushBreakdown(
     pct: number;
   }[];
 } {
-  // Store targets from master specification
+  // Store targets from master specification or user custom targets
   const targetMap: Record<string, number> = {
     'Mini 5 Pro': 9,
     'NEO Series': 18,
     'Lito X1': 15,
     'OA Series': 54,
     'Pocket Series': 45,
+    ...(customTargets || {}),
   };
 
   const promoterCount = Math.max(staffList.length, 1);
@@ -550,7 +552,8 @@ export function calculatePromoterMonthPerformance(
   staffList: string[] = DJI_DATA.staff,
   promoterMonthlyTargets: Record<number, number> = { 0: 2400000, 1: 2400000, 2: 2400000 },
   monthNum: number = 9,
-  currentDayOffset: number = 83
+  currentDayOffset: number = 83,
+  customTargets?: Record<string, number>
 ): PromoterMonthlyPerformance[] {
   const octSales = sales.filter((s) => dayOffsetToDate(s[0]).getMonth() === monthNum);
 
@@ -560,7 +563,7 @@ export function calculatePromoterMonthPerformance(
   const daysRemainingInMonth = Math.max(1, 31 - currentDayOfMonth);
 
   // Get Main Push units per promoter
-  const pushData = calculateMainPushBreakdown(sales, staffList, monthNum);
+  const pushData = calculateMainPushBreakdown(sales, staffList, monthNum, customTargets);
 
   return staffList.map((name, i) => {
     const quotaTarget = promoterMonthlyTargets[i] ?? 2400000;

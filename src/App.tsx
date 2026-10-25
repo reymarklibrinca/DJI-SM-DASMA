@@ -71,6 +71,9 @@ export default function App() {
             localLeads={store.localLeads}
             staffList={store.staff}
             promoterMonthlyTargets={store.promoterMonthlyTargets}
+            mainPushTargets={store.mainPushTargets}
+            onUpdateMainPushTargets={store.updateAllMainPushTargets}
+            onResetMainPushTargets={store.resetMainPushTargets}
           />
         )}
 

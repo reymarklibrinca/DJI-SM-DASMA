@@ -55,6 +55,7 @@ export interface LocalStorageState {
   final: Record<number, { at: string; sa: number; un: number }>; // dayOffset -> finalized summary
   goal?: number; // daily target, default 232258
   pm?: Record<number, number>; // promoter monthly targets (default 2400000 each)
+  mainPushTargets?: Record<string, number>; // categoryName -> target units (e.g. 'Mini 5 Pro': 9)
 }
 
 export interface PeriodRange {

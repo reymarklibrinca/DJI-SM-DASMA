@@ -40,6 +40,7 @@ import {
   CloudRain,
   ShieldAlert,
   RotateCcw,
+  Edit2,
 } from 'lucide-react';
 import { MAIN_PUSH_TARGETS, DJI_DATA } from '../data/initialData';
 import { PeriodRange, SaleTuple, StockSeriesCover } from '../types';
@@ -54,6 +55,7 @@ import {
   calculateMainPushBreakdown,
 } from '../utils/calculations';
 import { MainPushBreakdownModal } from './MainPushBreakdownModal';
+import { EditMainPushTargetsModal } from './EditMainPushTargetsModal';
 
 export interface InventoryWatchItem {
   id: string;
@@ -343,6 +345,9 @@ interface DashboardTabProps {
   localLeads: Record<number, Record<string, [number, number, number]>>;
   staffList: string[];
   promoterMonthlyTargets?: Record<number, number>;
+  mainPushTargets?: Record<string, number>;
+  onUpdateMainPushTargets?: (newTargets: Record<string, number>) => void;
+  onResetMainPushTargets?: () => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -353,8 +358,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   localLeads,
   staffList,
   promoterMonthlyTargets = { 0: 2400000, 1: 2400000, 2: 2400000 },
+  mainPushTargets,
+  onUpdateMainPushTargets,
+  onResetMainPushTargets,
 }) => {
   const [isMainPushModalOpen, setIsMainPushModalOpen] = useState(false);
+  const [isEditTargetsOpen, setIsEditTargetsOpen] = useState(false);
   const [mainPushCardMode, setMainPushCardMode] = useState<'store' | 'promoters'>('store');
 
   // Mode: 'inventory' (Inventory Watch Only) or 'weather' (Flight Weather & Flyability)
@@ -613,10 +622,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const prevCareAttach = calculateAttachRate(prevAgg.care, prevAgg.hw);
   const careDelta = currentCareAttach - prevCareAttach;
 
-  // Main Push calculation for October (Month 9)
+  // Main Push calculation for October (Month 9) with editable targets
   const pushData = useMemo(() => {
-    return calculateMainPushBreakdown(sales, staffList, 9);
-  }, [sales, staffList]);
+    return calculateMainPushBreakdown(sales, staffList, 9, mainPushTargets);
+  }, [sales, staffList, mainPushTargets]);
+
+  const soldByModelMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    pushData.categories.forEach((cat) => {
+      map[cat.name] = cat.storeSold;
+    });
+    return map;
+  }, [pushData]);
 
   // Chart computations
   const [hoveredDay, setHoveredDay] = useState<{ dayIdx: number; dayOffset: number; sa: number } | null>(null);
@@ -974,30 +991,43 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </p>
             </div>
 
-            {/* Quick Mode Toggle */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs self-start sm:self-center">
-              <button
-                type="button"
-                onClick={() => setMainPushCardMode('store')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                  mainPushCardMode === 'store'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Store Total
-              </button>
-              <button
-                type="button"
-                onClick={() => setMainPushCardMode('promoters')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                  mainPushCardMode === 'promoters'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Per Promoter
-              </button>
+            {/* Quick Mode Toggle & Edit Targets Action */}
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+              {onUpdateMainPushTargets && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditTargetsOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer shadow-2xs"
+                  title="Customize Monthly Unit Targets"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit Targets</span>
+                </button>
+              )}
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs">
+                <button
+                  type="button"
+                  onClick={() => setMainPushCardMode('store')}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                    mainPushCardMode === 'store'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Store Total
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMainPushCardMode('promoters')}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                    mainPushCardMode === 'promoters'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Per Promoter
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1809,7 +1839,22 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         staffList={staffList}
         promoterMonthlyTargets={promoterMonthlyTargets}
         endOffset={endOffset}
+        mainPushTargets={mainPushTargets}
+        onUpdateMainPushTargets={onUpdateMainPushTargets}
+        onResetMainPushTargets={onResetMainPushTargets}
       />
+
+      {/* Edit Main Push Targets Modal */}
+      {onUpdateMainPushTargets && (
+        <EditMainPushTargetsModal
+          isOpen={isEditTargetsOpen}
+          onClose={() => setIsEditTargetsOpen(false)}
+          currentTargets={mainPushTargets || {}}
+          onSaveTargets={onUpdateMainPushTargets}
+          onResetTargets={onResetMainPushTargets}
+          soldByModel={soldByModelMap}
+        />
+      )}
     </div>
   );
 };

@@ -15,6 +15,7 @@ import {
   Flame,
   Calendar,
   Sparkles,
+  Edit2,
 } from 'lucide-react';
 import { SaleTuple } from '../types';
 import { DJI_DATA, MAIN_PUSH_TARGETS } from '../data/initialData';
@@ -26,6 +27,7 @@ import {
   formatDate,
   categorizeMainPushModel,
 } from '../utils/calculations';
+import { EditMainPushTargetsModal } from './EditMainPushTargetsModal';
 
 interface MainPushBreakdownModalProps {
   isOpen: boolean;
@@ -34,6 +36,9 @@ interface MainPushBreakdownModalProps {
   staffList: string[];
   promoterMonthlyTargets: Record<number, number>;
   endOffset: number;
+  mainPushTargets?: Record<string, number>;
+  onUpdateMainPushTargets?: (newTargets: Record<string, number>) => void;
+  onResetMainPushTargets?: () => void;
 }
 
 export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
@@ -43,21 +48,33 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
   staffList,
   promoterMonthlyTargets,
   endOffset,
+  mainPushTargets,
+  onUpdateMainPushTargets,
+  onResetMainPushTargets,
 }) => {
   const [activeTab, setActiveTab] = useState<'matrix' | 'promoters' | 'units'>('matrix');
   const [selectedPromoterFilter, setSelectedPromoterFilter] = useState<number | 'all'>('all');
   const [selectedModelFilter, setSelectedModelFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isEditTargetsOpen, setIsEditTargetsOpen] = useState(false);
 
   // Month = 9 is October (0-indexed)
   const pushData = useMemo(() => {
-    return calculateMainPushBreakdown(sales, staffList, 9);
-  }, [sales, staffList]);
+    return calculateMainPushBreakdown(sales, staffList, 9, mainPushTargets);
+  }, [sales, staffList, mainPushTargets]);
 
   const promoterPerf = useMemo(() => {
-    return calculatePromoterMonthPerformance(sales, staffList, promoterMonthlyTargets, 9, endOffset);
-  }, [sales, staffList, promoterMonthlyTargets, endOffset]);
+    return calculatePromoterMonthPerformance(sales, staffList, promoterMonthlyTargets, 9, endOffset, mainPushTargets);
+  }, [sales, staffList, promoterMonthlyTargets, endOffset, mainPushTargets]);
+
+  const soldByModelMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    pushData.categories.forEach((cat) => {
+      map[cat.name] = cat.storeSold;
+    });
+    return map;
+  }, [pushData]);
 
   // October Sales matching filters for the Units tab
   const octoberMainPushSales = useMemo(() => {
@@ -166,6 +183,17 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onUpdateMainPushTargets && (
+              <button
+                type="button"
+                onClick={() => setIsEditTargetsOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-xs cursor-pointer"
+                title="Edit Main Push Targets"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Edit Targets</span>
+              </button>
+            )}
             <button
               onClick={handleCopyReport}
               className="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white transition-all border border-slate-700 cursor-pointer"
@@ -858,6 +886,17 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
           </div>
         </div>
       </div>
+
+      {onUpdateMainPushTargets && (
+        <EditMainPushTargetsModal
+          isOpen={isEditTargetsOpen}
+          onClose={() => setIsEditTargetsOpen(false)}
+          currentTargets={mainPushTargets || {}}
+          onSaveTargets={onUpdateMainPushTargets}
+          onResetTargets={onResetMainPushTargets}
+          soldByModel={soldByModelMap}
+        />
+      )}
     </div>
   );
 };

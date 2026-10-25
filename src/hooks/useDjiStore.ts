@@ -18,6 +18,14 @@ import {
 
 const STORAGE_KEY = 'oh2';
 
+export const DEFAULT_MAIN_PUSH_TARGETS: Record<string, number> = {
+  'Mini 5 Pro': 9,
+  'NEO Series': 18,
+  'Lito X1': 15,
+  'OA Series': 54,
+  'Pocket Series': 45,
+};
+
 const defaultLocalState: LocalStorageState = {
   sales: [],
   tasks: {},
@@ -25,6 +33,7 @@ const defaultLocalState: LocalStorageState = {
   final: {},
   goal: 232258, // Daily target in PHP
   pm: { 0: 2400000, 1: 2400000, 2: 2400000 }, // Christian, Donna, Jobert
+  mainPushTargets: DEFAULT_MAIN_PUSH_TARGETS,
 };
 
 export type ActiveTab = 'd' | 'b' | 't' | 'y' | 'r' | 's' | 'p' | 'l' | 'i' | 'c' | 'k';
@@ -43,6 +52,7 @@ export function useDjiStore() {
           leads: parsed.leads || {},
           final: parsed.final || {},
           pm: parsed.pm || defaultLocalState.pm,
+          mainPushTargets: parsed.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS,
         };
       }
     } catch (e) {
@@ -85,6 +95,7 @@ export function useDjiStore() {
             final: initial.final || {},
             goal: typeof initial.goal === 'number' ? initial.goal : defaultLocalState.goal,
             pm: initial.pm || defaultLocalState.pm,
+            mainPushTargets: initial.mainPushTargets || defaultLocalState.mainPushTargets,
           };
           setLocalData(validatedState);
           saveToStorage(validatedState);
@@ -116,6 +127,7 @@ export function useDjiStore() {
           final: incoming.final || {},
           goal: typeof incoming.goal === 'number' ? incoming.goal : defaultLocalState.goal,
           pm: incoming.pm || defaultLocalState.pm,
+          mainPushTargets: incoming.mainPushTargets || defaultLocalState.mainPushTargets,
         };
         saveToStorage(updated);
         return updated;
@@ -484,6 +496,53 @@ export function useDjiStore() {
     [saveToStorage]
   );
 
+  // Update Single Main Push Target
+  const updateMainPushTarget = useCallback(
+    (modelName: string, target: number) => {
+      setLocalData((prev) => {
+        const updated = {
+          ...prev,
+          mainPushTargets: {
+            ...(prev.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS),
+            [modelName]: Math.max(0, target),
+          },
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
+  // Update All Main Push Targets at once
+  const updateAllMainPushTargets = useCallback(
+    (newTargets: Record<string, number>) => {
+      setLocalData((prev) => {
+        const updated = {
+          ...prev,
+          mainPushTargets: {
+            ...newTargets,
+          },
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
+  // Reset Main Push Targets to Defaults
+  const resetMainPushTargets = useCallback(() => {
+    setLocalData((prev) => {
+      const updated = {
+        ...prev,
+        mainPushTargets: DEFAULT_MAIN_PUSH_TARGETS,
+      };
+      saveToStorage(updated);
+      return updated;
+    });
+  }, [saveToStorage]);
+
   // Toggle routine task
   const toggleTask = useCallback(
     (taskIndex: number, dateKey: string = new Date().toDateString()) => {
@@ -532,6 +591,7 @@ export function useDjiStore() {
           final: parsed.final || {},
           goal: typeof parsed.goal === 'number' ? parsed.goal : defaultLocalState.goal,
           pm: parsed.pm || defaultLocalState.pm,
+          mainPushTargets: parsed.mainPushTargets || defaultLocalState.mainPushTargets,
         };
         setLocalData(validatedState);
         saveToStorage(validatedState);
@@ -669,6 +729,7 @@ export function useDjiStore() {
     finalizedDays: localData.final,
     dailyGoal: localData.goal || 232258,
     promoterMonthlyTargets: (localData.pm || defaultLocalState.pm || { 0: 2400000, 1: 2400000, 2: 2400000 }) as Record<number, number>,
+    mainPushTargets: localData.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS,
     todayDayOffset,
     endOffset,
     activeTab,
@@ -693,6 +754,9 @@ export function useDjiStore() {
     toggleFinalizeDay,
     updateDailyGoal,
     updatePromoterTarget,
+    updateMainPushTarget,
+    updateAllMainPushTargets,
+    resetMainPushTargets,
     toggleTask,
     searchSerialNumber,
     exportDataJSON,
