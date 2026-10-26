@@ -346,8 +346,10 @@ interface DashboardTabProps {
   staffList: string[];
   promoterMonthlyTargets?: Record<number, number>;
   mainPushTargets?: Record<string, number>;
-  onUpdateMainPushTargets?: (newTargets: Record<string, number>) => void;
+  mainPushVariants?: Record<string, string[]>;
+  onUpdateMainPushTargets?: (newTargets: Record<string, number>, newVariants?: Record<string, string[]>) => void;
   onResetMainPushTargets?: () => void;
+  onDeleteMainPushTarget?: (modelName: string) => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -359,8 +361,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   staffList,
   promoterMonthlyTargets = { 0: 2400000, 1: 2400000, 2: 2400000 },
   mainPushTargets,
+  mainPushVariants,
   onUpdateMainPushTargets,
   onResetMainPushTargets,
+  onDeleteMainPushTarget,
 }) => {
   const [isMainPushModalOpen, setIsMainPushModalOpen] = useState(false);
   const [isEditTargetsOpen, setIsEditTargetsOpen] = useState(false);
@@ -622,10 +626,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const prevCareAttach = calculateAttachRate(prevAgg.care, prevAgg.hw);
   const careDelta = currentCareAttach - prevCareAttach;
 
-  // Main Push calculation for October (Month 9) with editable targets
+  // Main Push calculation for October (Month 9) with editable targets and variant selection
   const pushData = useMemo(() => {
-    return calculateMainPushBreakdown(sales, staffList, 9, mainPushTargets);
-  }, [sales, staffList, mainPushTargets]);
+    return calculateMainPushBreakdown(sales, staffList, 9, mainPushTargets, mainPushVariants);
+  }, [sales, staffList, mainPushTargets, mainPushVariants]);
 
   const soldByModelMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -1065,6 +1069,36 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         style={{ width: `${pct}%` }}
                       />
                     </div>
+
+                    {/* Sub-Variant Pills (e.g. Action 6 Adventure, Action 5 Standard, etc.) */}
+                    {cat.variants && cat.variants.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {cat.variants
+                          .filter((v) => v.selected)
+                          .slice(0, 5)
+                          .map((v) => (
+                            <span
+                              key={v.label}
+                              className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-800 border border-slate-200"
+                              title={`Active subvariant: ${v.label} (${v.sold} units sold)`}
+                            >
+                              <span className="text-slate-500 font-normal">
+                                {v.label.replace(/^Osmo\s+/i, '').replace(/^DJI\s+/i, '')}:
+                              </span>{' '}
+                              <strong className="text-slate-900">{v.sold}</strong>
+                            </span>
+                          ))}
+                        {cat.variants.filter((v) => v.selected).length > 5 && (
+                          <button
+                            type="button"
+                            onClick={() => setIsMainPushModalOpen(true)}
+                            className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 cursor-pointer"
+                          >
+                            +{cat.variants.filter((v) => v.selected).length - 5} more combos
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1840,8 +1874,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         promoterMonthlyTargets={promoterMonthlyTargets}
         endOffset={endOffset}
         mainPushTargets={mainPushTargets}
+        mainPushVariants={mainPushVariants}
         onUpdateMainPushTargets={onUpdateMainPushTargets}
         onResetMainPushTargets={onResetMainPushTargets}
+        onDeleteTarget={onDeleteMainPushTarget}
       />
 
       {/* Edit Main Push Targets Modal */}
@@ -1850,8 +1886,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           isOpen={isEditTargetsOpen}
           onClose={() => setIsEditTargetsOpen(false)}
           currentTargets={mainPushTargets || {}}
+          currentVariants={mainPushVariants}
           onSaveTargets={onUpdateMainPushTargets}
           onResetTargets={onResetMainPushTargets}
+          onDeleteTarget={onDeleteMainPushTarget}
           soldByModel={soldByModelMap}
         />
       )}

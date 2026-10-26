@@ -56,6 +56,14 @@ export interface LocalStorageState {
   goal?: number; // daily target, default 232258
   pm?: Record<number, number>; // promoter monthly targets (default 2400000 each)
   mainPushTargets?: Record<string, number>; // categoryName -> target units (e.g. 'Mini 5 Pro': 9)
+  mainPushVariants?: Record<string, string[]>; // categoryName -> array of selected variant labels (e.g. 'OA Series': ['Action 4', 'Action 5', 'Action 6'])
+}
+
+export interface VariantBreakdown {
+  label: string;
+  rawSerName: string;
+  selected: boolean;
+  sold: number;
 }
 
 export interface PeriodRange {

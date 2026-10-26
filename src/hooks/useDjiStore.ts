@@ -14,6 +14,7 @@ import {
   aggregateSales,
   calculateStockMetrics,
   calculatePercentChange,
+  DEFAULT_MAIN_PUSH_VARIANTS,
 } from '../utils/calculations';
 
 const STORAGE_KEY = 'oh2';
@@ -34,6 +35,7 @@ const defaultLocalState: LocalStorageState = {
   goal: 232258, // Daily target in PHP
   pm: { 0: 2400000, 1: 2400000, 2: 2400000 }, // Christian, Donna, Jobert
   mainPushTargets: DEFAULT_MAIN_PUSH_TARGETS,
+  mainPushVariants: DEFAULT_MAIN_PUSH_VARIANTS,
 };
 
 export type ActiveTab = 'd' | 'b' | 't' | 'y' | 'r' | 's' | 'p' | 'l' | 'i' | 'c' | 'k';
@@ -52,7 +54,8 @@ export function useDjiStore() {
           leads: parsed.leads || {},
           final: parsed.final || {},
           pm: parsed.pm || defaultLocalState.pm,
-          mainPushTargets: parsed.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS,
+          mainPushTargets: parsed.mainPushTargets !== undefined ? parsed.mainPushTargets : DEFAULT_MAIN_PUSH_TARGETS,
+          mainPushVariants: parsed.mainPushVariants !== undefined ? parsed.mainPushVariants : DEFAULT_MAIN_PUSH_VARIANTS,
         };
       }
     } catch (e) {
@@ -126,8 +129,8 @@ export function useDjiStore() {
           leads: incoming.leads || {},
           final: incoming.final || {},
           goal: typeof incoming.goal === 'number' ? incoming.goal : defaultLocalState.goal,
-          pm: incoming.pm || defaultLocalState.pm,
-          mainPushTargets: incoming.mainPushTargets || defaultLocalState.mainPushTargets,
+          mainPushTargets: incoming.mainPushTargets !== undefined ? incoming.mainPushTargets : (prev.mainPushTargets || defaultLocalState.mainPushTargets),
+          mainPushVariants: incoming.mainPushVariants !== undefined ? incoming.mainPushVariants : (prev.mainPushVariants || defaultLocalState.mainPushVariants),
         };
         saveToStorage(updated);
         return updated;
@@ -279,6 +282,113 @@ export function useDjiStore() {
       });
 
       return { success: true, message: 'Sale successfully logged!' };
+    },
+    [localData.final, localData.sales, unitsMap, saveToStorage]
+  );
+
+  // Bulk Add Sales for a Single Promoter
+  const addSalesBulk = useCallback(
+    (
+      items: Array<{
+        dayOffset: number;
+        staffIndex: number;
+        seriesIndex: number;
+        amount: number;
+        units?: number;
+        serialNumber?: string;
+        leadType?: number;
+      }>
+    ): { success: boolean; count: number; message: string; errors?: string[] } => {
+      if (!items || items.length === 0) {
+        return { success: false, count: 0, message: 'No sales to record.' };
+      }
+
+      const errors: string[] = [];
+      const validSales: SaleTuple[] = [];
+      const batchSeenSNs = new Set<string>();
+
+      for (const item of items) {
+        if (localData.final[item.dayOffset]) {
+          errors.push(`Day ${formatDate(item.dayOffset)} is finalized.`);
+          continue;
+        }
+
+        const cleanSn = item.serialNumber ? item.serialNumber.trim().toUpperCase() : '';
+        let resolvedSeriesIdx = item.seriesIndex;
+        let resolvedAmount = item.amount;
+
+        if (cleanSn) {
+          if (batchSeenSNs.has(cleanSn)) {
+            errors.push(`Duplicate SN in batch: ${cleanSn}`);
+            continue;
+          }
+
+          const unit = unitsMap.get(cleanSn);
+          if (unit) {
+            const actualSeriesIdx = DJI_DATA.ser.indexOf(unit[3]);
+            if (actualSeriesIdx >= 0) {
+              resolvedSeriesIdx = actualSeriesIdx;
+            }
+            if (resolvedAmount <= 0) {
+              resolvedAmount = unit[2];
+            }
+          }
+
+          const isPlain = unit && (unit[3] === 'ACCESSORIES' || unit[3] === 'CARE REFRESH');
+
+          if (!isPlain) {
+            const staticSold = DJI_DATA.sold[cleanSn];
+            const localSold = localData.sales.find((s) => s[6]?.toUpperCase() === cleanSn);
+            const isMarkedSold = unit && unit[4] === 'SOLD';
+
+            if (staticSold || localSold || isMarkedSold) {
+              errors.push(`Unit SN ${cleanSn} is already recorded as sold!`);
+              continue;
+            }
+          }
+
+          batchSeenSNs.add(cleanSn);
+        }
+
+        const newSale: SaleTuple = [
+          item.dayOffset,
+          item.staffIndex,
+          resolvedSeriesIdx,
+          resolvedAmount,
+          item.units ?? 1,
+          0,
+          cleanSn || '',
+          item.leadType !== undefined ? item.leadType : 3,
+        ];
+
+        validSales.push(newSale);
+      }
+
+      if (validSales.length === 0) {
+        return {
+          success: false,
+          count: 0,
+          message: errors.length > 0 ? errors.join(', ') : 'No valid sales to add.',
+          errors,
+        };
+      }
+
+      setLocalData((prev) => {
+        const updated = {
+          ...prev,
+          sales: [...prev.sales, ...validSales],
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+
+      const staffName = DJI_DATA.staff[items[0]?.staffIndex] || 'Promoter';
+      return {
+        success: true,
+        count: validSales.length,
+        message: `Successfully logged ${validSales.length} sale${validSales.length === 1 ? '' : 's'} for ${staffName}!`,
+        errors: errors.length > 0 ? errors : undefined,
+      };
     },
     [localData.final, localData.sales, unitsMap, saveToStorage]
   );
@@ -514,15 +624,54 @@ export function useDjiStore() {
     [saveToStorage]
   );
 
-  // Update All Main Push Targets at once
+  // Delete target series completely
+  const deleteMainPushTarget = useCallback(
+    (modelName: string) => {
+      setLocalData((prev) => {
+        const nextTargets = { ...(prev.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS) };
+        delete nextTargets[modelName];
+        const nextVariants = { ...(prev.mainPushVariants || DEFAULT_MAIN_PUSH_VARIANTS) };
+        delete nextVariants[modelName];
+        const updated = {
+          ...prev,
+          mainPushTargets: nextTargets,
+          mainPushVariants: nextVariants,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
+  // Update selected variants for a series
+  const updateSeriesVariants = useCallback(
+    (seriesName: string, selectedVariants: string[]) => {
+      setLocalData((prev) => {
+        const updated = {
+          ...prev,
+          mainPushVariants: {
+            ...(prev.mainPushVariants || DEFAULT_MAIN_PUSH_VARIANTS),
+            [seriesName]: selectedVariants,
+          },
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
+  // Update All Main Push Targets and Variants at once
   const updateAllMainPushTargets = useCallback(
-    (newTargets: Record<string, number>) => {
+    (newTargets: Record<string, number>, newVariants?: Record<string, string[]>) => {
       setLocalData((prev) => {
         const updated = {
           ...prev,
           mainPushTargets: {
             ...newTargets,
           },
+          ...(newVariants ? { mainPushVariants: { ...newVariants } } : {}),
         };
         saveToStorage(updated);
         return updated;
@@ -537,6 +686,7 @@ export function useDjiStore() {
       const updated = {
         ...prev,
         mainPushTargets: DEFAULT_MAIN_PUSH_TARGETS,
+        mainPushVariants: DEFAULT_MAIN_PUSH_VARIANTS,
       };
       saveToStorage(updated);
       return updated;
@@ -730,6 +880,7 @@ export function useDjiStore() {
     dailyGoal: localData.goal || 232258,
     promoterMonthlyTargets: (localData.pm || defaultLocalState.pm || { 0: 2400000, 1: 2400000, 2: 2400000 }) as Record<number, number>,
     mainPushTargets: localData.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS,
+    mainPushVariants: localData.mainPushVariants || DEFAULT_MAIN_PUSH_VARIANTS,
     todayDayOffset,
     endOffset,
     activeTab,
@@ -746,6 +897,7 @@ export function useDjiStore() {
     isCloudLoaded,
     cloudSyncStatus,
     addSale,
+    addSalesBulk,
     deleteSale,
     addLead,
     removeLead,
@@ -755,6 +907,8 @@ export function useDjiStore() {
     updateDailyGoal,
     updatePromoterTarget,
     updateMainPushTarget,
+    deleteMainPushTarget,
+    updateSeriesVariants,
     updateAllMainPushTargets,
     resetMainPushTargets,
     toggleTask,

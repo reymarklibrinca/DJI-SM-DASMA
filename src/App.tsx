@@ -72,8 +72,10 @@ export default function App() {
             staffList={store.staff}
             promoterMonthlyTargets={store.promoterMonthlyTargets}
             mainPushTargets={store.mainPushTargets}
+            mainPushVariants={store.mainPushVariants}
             onUpdateMainPushTargets={store.updateAllMainPushTargets}
             onResetMainPushTargets={store.resetMainPushTargets}
+            onDeleteMainPushTarget={store.deleteMainPushTarget}
           />
         )}
 
@@ -109,6 +111,7 @@ export default function App() {
                 localLeads={store.localLeads}
                 finalizedDays={store.finalizedDays}
                 onAddSale={store.addSale}
+                onAddSalesBulk={store.addSalesBulk}
                 onDeleteSale={store.deleteSale}
                 onAddLead={store.addLead}
                 onRemoveLead={store.removeLead}

@@ -37,8 +37,10 @@ interface MainPushBreakdownModalProps {
   promoterMonthlyTargets: Record<number, number>;
   endOffset: number;
   mainPushTargets?: Record<string, number>;
-  onUpdateMainPushTargets?: (newTargets: Record<string, number>) => void;
+  mainPushVariants?: Record<string, string[]>;
+  onUpdateMainPushTargets?: (newTargets: Record<string, number>, newVariants?: Record<string, string[]>) => void;
   onResetMainPushTargets?: () => void;
+  onDeleteTarget?: (modelName: string) => void;
 }
 
 export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
@@ -49,8 +51,10 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
   promoterMonthlyTargets,
   endOffset,
   mainPushTargets,
+  mainPushVariants,
   onUpdateMainPushTargets,
   onResetMainPushTargets,
+  onDeleteTarget,
 }) => {
   const [activeTab, setActiveTab] = useState<'matrix' | 'promoters' | 'units'>('matrix');
   const [selectedPromoterFilter, setSelectedPromoterFilter] = useState<number | 'all'>('all');
@@ -61,12 +65,12 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
 
   // Month = 9 is October (0-indexed)
   const pushData = useMemo(() => {
-    return calculateMainPushBreakdown(sales, staffList, 9, mainPushTargets);
-  }, [sales, staffList, mainPushTargets]);
+    return calculateMainPushBreakdown(sales, staffList, 9, mainPushTargets, mainPushVariants);
+  }, [sales, staffList, mainPushTargets, mainPushVariants]);
 
   const promoterPerf = useMemo(() => {
-    return calculatePromoterMonthPerformance(sales, staffList, promoterMonthlyTargets, 9, endOffset, mainPushTargets);
-  }, [sales, staffList, promoterMonthlyTargets, endOffset, mainPushTargets]);
+    return calculatePromoterMonthPerformance(sales, staffList, promoterMonthlyTargets, 9, endOffset, mainPushTargets, mainPushVariants);
+  }, [sales, staffList, promoterMonthlyTargets, endOffset, mainPushTargets, mainPushVariants]);
 
   const soldByModelMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -358,6 +362,27 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
                               <div className="text-[10px] text-slate-400">
                                 {cat.storePct.toFixed(0)}% store target met
                               </div>
+                              {cat.variants && cat.variants.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 mt-1.5 max-w-sm">
+                                  {cat.variants
+                                    .filter((v) => v.selected)
+                                    .slice(0, 4)
+                                    .map((v) => (
+                                      <span
+                                        key={v.label}
+                                        className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+                                        title={`Active subvariant: ${v.label} (${v.sold} units sold)`}
+                                      >
+                                        {v.label.replace(/^Osmo\s+/i, '').replace(/^DJI\s+/i, '')}: {v.sold}
+                                      </span>
+                                    ))}
+                                  {cat.variants.filter((v) => v.selected).length > 4 && (
+                                    <span className="text-[9px] text-slate-400 font-semibold px-1">
+                                      +{cat.variants.filter((v) => v.selected).length - 4} more
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             {/* Store Columns */}
                             <td className="py-3 px-3 text-center font-bold text-slate-800 bg-slate-50/50">
@@ -892,8 +917,10 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
           isOpen={isEditTargetsOpen}
           onClose={() => setIsEditTargetsOpen(false)}
           currentTargets={mainPushTargets || {}}
+          currentVariants={mainPushVariants}
           onSaveTargets={onUpdateMainPushTargets}
           onResetTargets={onResetMainPushTargets}
+          onDeleteTarget={onDeleteTarget}
           soldByModel={soldByModelMap}
         />
       )}

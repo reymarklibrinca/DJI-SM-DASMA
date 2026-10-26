@@ -12,6 +12,7 @@ import {
   User,
   ShoppingBag,
   RotateCcw,
+  Zap,
 } from 'lucide-react';
 import { DJI_DATA, LEAD_TYPE_NAMES } from '../data/initialData';
 import { SaleTuple, UnitTuple } from '../types';
@@ -21,6 +22,7 @@ import {
   formatDate,
   formatISODate,
 } from '../utils/calculations';
+import { BulkQuickLogModal } from './BulkQuickLogModal';
 
 interface QuickLogCardProps {
   todayOffset: number;
@@ -37,6 +39,17 @@ interface QuickLogCardProps {
     serialNumber?: string,
     leadType?: number
   ) => { success: boolean; message: string };
+  onAddSalesBulk?: (
+    items: Array<{
+      dayOffset: number;
+      staffIndex: number;
+      seriesIndex: number;
+      amount: number;
+      units?: number;
+      serialNumber?: string;
+      leadType?: number;
+    }>
+  ) => { success: boolean; count: number; message: string; errors?: string[] };
   onDeleteSale: (index: number) => { success: boolean; message: string };
   onAddLead: (dayOffset: number, staffIndex: number | string, leadType: 0 | 1 | 2) => { success: boolean; message: string };
   onRemoveLead: (dayOffset: number, staffIndex: number | string, leadType: 0 | 1 | 2) => { success: boolean; message: string };
@@ -61,6 +74,7 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
   localLeads,
   finalizedDays,
   onAddSale,
+  onAddSalesBulk,
   onDeleteSale,
   onAddLead,
   onRemoveLead,
@@ -69,6 +83,7 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
   onSearchSN,
 }) => {
   // Form State
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<number>(0);
   const [selectedDateISO, setSelectedDateISO] = useState<string>(formatISODate(todayOffset));
   const [leadType, setLeadType] = useState<0 | 1 | 2>(0);
@@ -405,7 +420,17 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsBulkModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all cursor-pointer shadow-xs active:scale-98"
+              title="Bulk Quick Log by Serial Number for a Promoter"
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>Bulk Quick Log (Paste SN)</span>
+            </button>
+
             <button
               onClick={() => onToggleFinalize(selectedDayOffset)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
@@ -797,6 +822,43 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
           </div>
         )}
       </div>
+
+      {/* Bulk Quick Log Modal Window for Single Promoter */}
+      <BulkQuickLogModal
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
+        staffList={staffList}
+        initialStaffIndex={selectedStaff}
+        initialDayOffset={selectedDayOffset}
+        finalizedDays={finalizedDays}
+        localSales={localSales}
+        onAddSalesBulk={
+          onAddSalesBulk ||
+          ((items) => {
+            let count = 0;
+            const errors: string[] = [];
+            items.forEach((it) => {
+              const res = onAddSale(
+                it.dayOffset,
+                it.staffIndex,
+                it.seriesIndex,
+                it.amount,
+                it.units,
+                it.serialNumber,
+                it.leadType
+              );
+              if (res.success) count++;
+              else errors.push(res.message);
+            });
+            return {
+              success: count > 0,
+              count,
+              message: count > 0 ? `Successfully logged ${count} sales!` : errors[0] || 'Failed to log.',
+              errors,
+            };
+          })
+        }
+      />
     </div>
   );
 };

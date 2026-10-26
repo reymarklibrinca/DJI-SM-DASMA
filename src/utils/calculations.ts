@@ -1,5 +1,5 @@
 import { DJI_DATA, DAYS_OF_WEEK } from '../data/initialData';
-import { AggregatedData, PeriodRange, SaleTuple, StockSeriesCover, UnitTuple } from '../types';
+import { AggregatedData, PeriodRange, SaleTuple, StockSeriesCover, UnitTuple, VariantBreakdown } from '../types';
 
 export const START_DATE = new Date(DJI_DATA.start + 'T00:00:00');
 
@@ -397,6 +397,7 @@ export interface MainPushCategoryBreakdown {
   storePct: number;
   targetPerPromoter: number;
   promoters: PromoterModelTarget[];
+  variants: VariantBreakdown[];
 }
 
 export interface PromoterMonthlyPerformance {
@@ -419,6 +420,253 @@ export interface PromoterMonthlyPerformance {
   requiredDailyRunRate: number;
 }
 
+export interface SeriesVariantInfo {
+  label: string;
+  rawSerName: string;
+}
+
+export interface StockSubvariantItem {
+  productName: string; // Subvariant = Unit name from stocks
+  seriesName: string;  // Variant = Series name
+  price: number;
+  inStockCount: number;
+  soldCount: number;
+}
+
+/**
+ * Check if a product/series is an actual hardware unit (camera, drone, gimbal, power station combo),
+ * strictly excluding accessories, mounts, cables, batteries, filters, and Care Refresh plans.
+ */
+export function isHardwareUnitItem(seriesName: string, productName?: string): boolean {
+  if (!seriesName) return false;
+  const sUpper = seriesName.trim().toUpperCase();
+  if (sUpper === 'ACCESSORIES' || sUpper.includes('ACCESSOR')) return false;
+  if (sUpper === 'CARE REFRESH' || sUpper.includes('CARE REFRESH')) return false;
+
+  if (productName) {
+    const pUpper = productName.trim().toUpperCase();
+    if (pUpper.includes('CARE REFRESH')) return false;
+    if (
+      pUpper.includes('LENS COVER') ||
+      pUpper.includes('WRIST STRAP') ||
+      pUpper.includes('PROPELLER GUARD') ||
+      pUpper.includes('PROPELLERS GUARD') ||
+      pUpper.includes('CHARGING HUB') ||
+      pUpper.includes('BIKE SEAT RAIL MOUNT') ||
+      pUpper.includes('BITE MOUNT') ||
+      pUpper.includes('FLEXIBLE MOUNT') ||
+      pUpper.includes('HANGING NECK MOUNT') ||
+      pUpper.includes('HANDLEBAR MOUNT') ||
+      pUpper.includes('ACCESSORY KIT') ||
+      pUpper.includes('BLACK MIST FILTER') ||
+      pUpper.includes('BATTERY HANDLE') ||
+      pUpper.includes('FILL LIGHT') ||
+      pUpper.includes('INTELLIGENT FLIGHT BATTERY') ||
+      pUpper.includes('EXTREME BATTERY')
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Get all unique subvariants (hardware units only) from stock
+export function getAllStockSubvariants(): StockSubvariantItem[] {
+  return DJI_DATA.stock
+    .filter((s) => isHardwareUnitItem(s[0], s[1]))
+    .map((s) => ({
+      seriesName: s[0],
+      productName: s[1],
+      price: s[2],
+      inStockCount: s[3],
+      soldCount: s[4],
+    }))
+    .sort((a, b) => {
+      const sCmp = a.seriesName.localeCompare(b.seriesName);
+      if (sCmp !== 0) return sCmp;
+      return a.productName.localeCompare(b.productName);
+    });
+}
+
+// Get all stock subvariants associated with a target focus series (hardware units only)
+export function getStockSubvariantsForTarget(targetName: string): StockSubvariantItem[] {
+  if (!isHardwareUnitItem(targetName)) {
+    return [];
+  }
+  const upper = targetName.toUpperCase();
+  const all = getAllStockSubvariants();
+
+  if (upper.includes('OA') || upper.includes('ACTION')) {
+    return all.filter(
+      (s) =>
+        s.seriesName.includes('ACTION') ||
+        s.productName.toUpperCase().includes('ACTION') ||
+        s.seriesName.includes('OA')
+    );
+  }
+  if (upper.includes('POCKET')) {
+    return all.filter(
+      (s) =>
+        s.seriesName.includes('POCKET') ||
+        s.productName.toUpperCase().includes('POCKET')
+    );
+  }
+  if (upper.includes('MINI 5') || upper.includes('MINI 5 PRO')) {
+    return all.filter(
+      (s) =>
+        s.seriesName.includes('MINI 5') ||
+        s.productName.toUpperCase().includes('MINI 5')
+    );
+  }
+  if (upper.includes('MINI')) {
+    return all.filter(
+      (s) =>
+        (s.seriesName.includes('MINI') || s.productName.toUpperCase().includes('MINI')) &&
+        !s.seriesName.includes('MIC') &&
+        !s.seriesName.includes('POWER')
+    );
+  }
+  if (upper.includes('NEO')) {
+    return all.filter(
+      (s) =>
+        s.seriesName.includes('NEO') ||
+        s.productName.toUpperCase().includes('NEO')
+    );
+  }
+  if (upper.includes('LITO')) {
+    return all.filter(
+      (s) =>
+        s.seriesName.includes('LITO') ||
+        s.productName.toUpperCase().includes('LITO')
+    );
+  }
+
+  return all.filter(
+    (s) =>
+      s.seriesName.toUpperCase().includes(upper) ||
+      upper.includes(s.seriesName.toUpperCase()) ||
+      s.productName.toUpperCase().includes(upper)
+  );
+}
+
+export const KNOWN_SERIES_VARIANTS: Record<string, SeriesVariantInfo[]> = {
+  'OA Series': [
+    { label: 'Osmo Action 6 Adventure Combo', rawSerName: 'ACTION 6' },
+    { label: 'Osmo Action 6 Street Photography Gift Set', rawSerName: 'ACTION 6' },
+    { label: 'Osmo Action 6 Standard Combo', rawSerName: 'ACTION 6' },
+    { label: 'Osmo Action 5 PRO Adventure Combo', rawSerName: 'OSMO ACTION 5 PRO' },
+    { label: 'Osmo Action 5 PRO Standard Combo', rawSerName: 'OSMO ACTION 5 PRO' },
+    { label: 'Osmo Action 4 Adventure Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
+    { label: 'Osmo Action 4 Standard Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
+    { label: 'Action 6', rawSerName: 'ACTION 6' },
+    { label: 'Action 5', rawSerName: 'OSMO ACTION 5 PRO' },
+    { label: 'Action 4', rawSerName: 'OSMO ACTION 4 SERIES' },
+  ],
+  'ACTION SERIES': [
+    { label: 'Osmo Action 6 Adventure Combo', rawSerName: 'ACTION 6' },
+    { label: 'Osmo Action 6 Street Photography Gift Set', rawSerName: 'ACTION 6' },
+    { label: 'Osmo Action 6 Standard Combo', rawSerName: 'ACTION 6' },
+    { label: 'Osmo Action 5 PRO Adventure Combo', rawSerName: 'OSMO ACTION 5 PRO' },
+    { label: 'Osmo Action 5 PRO Standard Combo', rawSerName: 'OSMO ACTION 5 PRO' },
+    { label: 'Osmo Action 4 Adventure Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
+    { label: 'Osmo Action 4 Standard Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
+    { label: 'Action 6', rawSerName: 'ACTION 6' },
+    { label: 'Action 5', rawSerName: 'OSMO ACTION 5 PRO' },
+    { label: 'Action 4', rawSerName: 'OSMO ACTION 4 SERIES' },
+  ],
+  'Pocket Series': [
+    { label: 'Osmo Pocket 4 Creator Combo', rawSerName: 'POCKET 4' },
+    { label: 'Osmo Pocket 4 Standard Combo', rawSerName: 'POCKET 4' },
+    { label: 'Osmo Pocket 4P Vlog Combo', rawSerName: 'POCKET 4P' },
+    { label: 'Osmo Pocket 4P Standard Combo', rawSerName: 'POCKET 4P Standard' },
+    { label: 'Osmo Pocket 3 Creator Combo', rawSerName: 'POCKET 3' },
+    { label: 'Osmo Pocket 3', rawSerName: 'POCKET 3' },
+    { label: 'Pocket 4', rawSerName: 'POCKET 4' },
+    { label: 'Pocket 3', rawSerName: 'POCKET 3' },
+  ],
+  'POCKET 4 SERIES': [
+    { label: 'Osmo Pocket 4 Creator Combo', rawSerName: 'POCKET 4' },
+    { label: 'Osmo Pocket 4 Standard Combo', rawSerName: 'POCKET 4' },
+    { label: 'Osmo Pocket 4P Vlog Combo', rawSerName: 'POCKET 4P' },
+    { label: 'Osmo Pocket 4P Standard Combo', rawSerName: 'POCKET 4P Standard' },
+    { label: 'Osmo Pocket 3 Creator Combo', rawSerName: 'POCKET 3' },
+    { label: 'Osmo Pocket 3', rawSerName: 'POCKET 3' },
+    { label: 'Pocket 4', rawSerName: 'POCKET 4' },
+    { label: 'Pocket 3', rawSerName: 'POCKET 3' },
+  ],
+  'NEO Series': [
+    { label: 'DJI Neo (GL)', rawSerName: 'DJI NEO 2' },
+    { label: 'DJI Neo Fly More Combo', rawSerName: 'DJI NEO 2' },
+    { label: 'DJI Neo 2', rawSerName: 'DJI NEO 2' },
+  ],
+  'Mini 5 Pro': [
+    { label: 'DJI Mini 5 Pro', rawSerName: 'MINI 5 PRO SERIES' },
+    { label: 'DJI Mini 5 Pro Fly More Combo', rawSerName: 'MINI 5 PRO SERIES' },
+    { label: 'DJI Mini 5 Pro Fly More Combo (DJI RC 2)', rawSerName: 'MINI 5 PRO SERIES' },
+    { label: 'Mini 5 Pro', rawSerName: 'MINI 5 PRO SERIES' },
+  ],
+  'Lito X1': [
+    { label: 'Lito X1', rawSerName: 'LITO X1' },
+    { label: 'Lito 1', rawSerName: 'LITO 1' },
+  ],
+};
+
+export const DEFAULT_MAIN_PUSH_VARIANTS: Record<string, string[]> = {
+  'OA Series': [
+    'Osmo Action 6 Adventure Combo',
+    'Osmo Action 6 Street Photography Gift Set',
+    'Osmo Action 6 Standard Combo',
+    'Osmo Action 5 PRO Adventure Combo',
+    'Osmo Action 5 PRO Standard Combo',
+    'Osmo Action 4 Adventure Combo',
+    'Osmo Action 4 Standard Combo',
+    'Action 6',
+    'Action 5',
+    'Action 4',
+  ],
+  'ACTION SERIES': [
+    'Osmo Action 6 Adventure Combo',
+    'Osmo Action 6 Street Photography Gift Set',
+    'Osmo Action 6 Standard Combo',
+    'Osmo Action 5 PRO Adventure Combo',
+    'Osmo Action 5 PRO Standard Combo',
+    'Osmo Action 4 Adventure Combo',
+    'Osmo Action 4 Standard Combo',
+    'Action 6',
+    'Action 5',
+    'Action 4',
+  ],
+  'Pocket Series': [
+    'Osmo Pocket 4 Creator Combo',
+    'Osmo Pocket 4 Standard Combo',
+    'Osmo Pocket 4P Vlog Combo',
+    'Osmo Pocket 4P Standard Combo',
+    'Osmo Pocket 3 Creator Combo',
+    'Osmo Pocket 3',
+    'Pocket 4',
+    'Pocket 3',
+  ],
+  'POCKET 4 SERIES': [
+    'Osmo Pocket 4 Creator Combo',
+    'Osmo Pocket 4 Standard Combo',
+    'Osmo Pocket 4P Vlog Combo',
+    'Osmo Pocket 4P Standard Combo',
+    'Osmo Pocket 3 Creator Combo',
+    'Osmo Pocket 3',
+    'Pocket 4',
+    'Pocket 3',
+  ],
+  'NEO Series': ['DJI Neo (GL)', 'DJI Neo Fly More Combo', 'DJI Neo 2'],
+  'Mini 5 Pro': [
+    'DJI Mini 5 Pro',
+    'DJI Mini 5 Pro Fly More Combo',
+    'DJI Mini 5 Pro Fly More Combo (DJI RC 2)',
+    'Mini 5 Pro',
+  ],
+  'Lito X1': ['Lito X1', 'Lito 1'],
+};
+
 export function categorizeMainPushModel(s: SaleTuple): string | null {
   const serName = DJI_DATA.ser[s[2]] || '';
   if (serName.includes('MINI 5 PRO')) return 'Mini 5 Pro';
@@ -433,7 +681,8 @@ export function calculateMainPushBreakdown(
   sales: SaleTuple[],
   staffList: string[] = DJI_DATA.staff,
   monthNum: number = 9, // 9 = October
-  customTargets?: Record<string, number>
+  customTargets?: Record<string, number>,
+  customVariants?: Record<string, string[]>
 ): {
   categories: MainPushCategoryBreakdown[];
   totalStoreTarget: number;
@@ -450,14 +699,17 @@ export function calculateMainPushBreakdown(
   }[];
 } {
   // Store targets from master specification or user custom targets
-  const targetMap: Record<string, number> = {
-    'Mini 5 Pro': 9,
-    'NEO Series': 18,
-    'Lito X1': 15,
-    'OA Series': 54,
-    'Pocket Series': 45,
-    ...(customTargets || {}),
-  };
+  // If customTargets is provided by user, respect exactly those keys (allowing targets to be deleted)
+  const targetMap: Record<string, number> =
+    customTargets !== undefined
+      ? customTargets
+      : {
+          'Mini 5 Pro': 9,
+          'NEO Series': 18,
+          'Lito X1': 15,
+          'OA Series': 54,
+          'Pocket Series': 45,
+        };
 
   const promoterCount = Math.max(staffList.length, 1);
   const octSales = sales.filter((s) => dayOffsetToDate(s[0]).getMonth() === monthNum);
@@ -474,6 +726,34 @@ export function calculateMainPushBreakdown(
         pct: 0,
       }));
 
+      // Determine candidate variants for this category
+      const known = KNOWN_SERIES_VARIANTS[name];
+      let candidateVariants: SeriesVariantInfo[] = [];
+      if (known && known.length > 0) {
+        candidateVariants = [...known];
+      } else {
+        const upper = name.toUpperCase();
+        const matches = DJI_DATA.ser
+          .filter((s) => isHardwareUnitItem(s))
+          .filter((s) => s.includes(upper) || upper.includes(s));
+        if (matches.length > 0) {
+          candidateVariants = matches.map((m) => ({ label: m, rawSerName: m }));
+        } else if (isHardwareUnitItem(name)) {
+          candidateVariants = [{ label: name, rawSerName: name }];
+        }
+      }
+
+      // Determine which variants are selected
+      const selectedList = customVariants?.[name] ?? DEFAULT_MAIN_PUSH_VARIANTS[name];
+      const variants: VariantBreakdown[] = candidateVariants
+        .filter((v) => isHardwareUnitItem(v.rawSerName, v.label))
+        .map((v) => ({
+          label: v.label,
+          rawSerName: v.rawSerName,
+          selected: selectedList ? selectedList.includes(v.label) : true,
+          sold: 0,
+        }));
+
       return {
         name,
         storeTarget,
@@ -482,22 +762,68 @@ export function calculateMainPushBreakdown(
         storePct: 0,
         targetPerPromoter,
         promoters,
+        variants,
       };
     }
   );
 
-  // Aggregate sales
-  octSales.forEach((s) => {
-    const catName = categorizeMainPushModel(s);
-    if (!catName) return;
-    const cat = categories.find((c) => c.name === catName);
-    if (!cat) return;
+  // Fast map of serial numbers to product names for accurate subvariant matching
+  const unitsBySn = new Map<string, string>();
+  DJI_DATA.units.forEach((u) => {
+    unitsBySn.set(u[0].toUpperCase(), u[1]);
+  });
 
+  // Aggregate sales with variant matching (Hardware Units Only - accessories & care refresh strictly excluded)
+  octSales.forEach((s) => {
+    if (s[2] === ACCESSORIES_INDEX || s[2] === CARE_INDEX) return;
+    const serName = DJI_DATA.ser[s[2]] || '';
+    if (!isHardwareUnitItem(serName)) return;
     const u = s[4] ?? 1;
-    cat.storeSold += u;
-    const promoter = cat.promoters[s[1]];
-    if (promoter) {
-      promoter.sold += u;
+    const sn = s[6] ? s[6].trim().toUpperCase() : '';
+    const unitProdName = sn ? (unitsBySn.get(sn) || '').toUpperCase() : '';
+
+    for (const cat of categories) {
+      let matched = false;
+
+      // Check each variant in the category
+      for (const variant of cat.variants) {
+        const vRaw = variant.rawSerName.toUpperCase();
+        const vLabel = variant.label.toUpperCase();
+        const serUpper = serName.toUpperCase();
+
+        const isMatch =
+          (unitProdName && (unitProdName === vLabel || unitProdName.includes(vLabel) || vLabel.includes(unitProdName))) ||
+          serUpper === vRaw ||
+          serUpper === vLabel ||
+          serUpper.includes(vRaw) ||
+          serUpper.includes(vLabel) ||
+          (vLabel.includes('ACTION 4') && serUpper.includes('ACTION 4')) ||
+          (vLabel.includes('ACTION 5') && serUpper.includes('ACTION 5')) ||
+          (vLabel.includes('ACTION 6') && serUpper.includes('ACTION 6')) ||
+          (vLabel.includes('POCKET 3') && serUpper.includes('POCKET 3')) ||
+          (vLabel.includes('POCKET 4') && serUpper.includes('POCKET 4')) ||
+          (vLabel.includes('MINI 5') && serUpper.includes('MINI 5')) ||
+          (vLabel.includes('NEO') && serUpper.includes('NEO')) ||
+          (vLabel.includes('LITO') && serUpper.includes('LITO'));
+
+        if (isMatch) {
+          // Track sold count on the variant always
+          variant.sold += u;
+
+          // Only credit towards category and promoter target if this variant is selected!
+          if (variant.selected) {
+            cat.storeSold += u;
+            const promoter = cat.promoters[s[1]];
+            if (promoter) {
+              promoter.sold += u;
+            }
+          }
+          matched = true;
+          break;
+        }
+      }
+
+      if (matched) break;
     }
   });
 
@@ -553,7 +879,8 @@ export function calculatePromoterMonthPerformance(
   promoterMonthlyTargets: Record<number, number> = { 0: 2400000, 1: 2400000, 2: 2400000 },
   monthNum: number = 9,
   currentDayOffset: number = 83,
-  customTargets?: Record<string, number>
+  customTargets?: Record<string, number>,
+  customVariants?: Record<string, string[]>
 ): PromoterMonthlyPerformance[] {
   const octSales = sales.filter((s) => dayOffsetToDate(s[0]).getMonth() === monthNum);
 
@@ -563,7 +890,7 @@ export function calculatePromoterMonthPerformance(
   const daysRemainingInMonth = Math.max(1, 31 - currentDayOfMonth);
 
   // Get Main Push units per promoter
-  const pushData = calculateMainPushBreakdown(sales, staffList, monthNum, customTargets);
+  const pushData = calculateMainPushBreakdown(sales, staffList, monthNum, customTargets, customVariants);
 
   return staffList.map((name, i) => {
     const quotaTarget = promoterMonthlyTargets[i] ?? 2400000;
