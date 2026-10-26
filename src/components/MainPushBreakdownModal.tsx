@@ -17,6 +17,7 @@ import {
   Sparkles,
   Edit2,
   Layers,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { SaleTuple } from '../types';
 import { DJI_DATA, MAIN_PUSH_TARGETS } from '../data/initialData';
@@ -28,7 +29,7 @@ import {
   formatDate,
   categorizeMainPushModel,
 } from '../utils/calculations';
-import { EditMainPushTargetsModal } from './EditMainPushTargetsModal';
+import { ImportMainPushTargetsModal } from './ImportMainPushTargetsModal';
 
 interface MainPushBreakdownModalProps {
   isOpen: boolean;
@@ -62,7 +63,7 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
   const [selectedModelFilter, setSelectedModelFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
-  const [isEditTargetsOpen, setIsEditTargetsOpen] = useState(false);
+  const [isImportTargetsOpen, setIsImportTargetsOpen] = useState(false);
 
   // Month = 9 is October (0-indexed)
   const pushData = useMemo(() => {
@@ -191,12 +192,12 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
             {onUpdateMainPushTargets && (
               <button
                 type="button"
-                onClick={() => setIsEditTargetsOpen(true)}
-                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-xs cursor-pointer"
-                title="Customize Main Push Targets & Catalog"
+                onClick={() => setIsImportTargetsOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-xs cursor-pointer"
+                title="Import Main Push Targets via Excel Template"
               >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Customize & Catalog</span>
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Import Targets (Excel)</span>
               </button>
             )}
             <button
@@ -359,31 +360,10 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
                         return (
                           <tr key={cat.name} className="hover:bg-slate-50">
                             <td className="py-3 px-3">
-                              <div className="font-bold text-slate-900">{cat.name}</div>
-                              <div className="text-[10px] text-slate-400">
+                              <div className="font-bold text-slate-900 text-sm">{cat.name}</div>
+                              <div className="text-[11px] text-slate-500 font-medium">
                                 {cat.storePct.toFixed(0)}% store target met
                               </div>
-                              {cat.variants && cat.variants.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-1 mt-1.5 max-w-sm">
-                                  {cat.variants
-                                    .filter((v) => v.selected)
-                                    .slice(0, 4)
-                                    .map((v) => (
-                                      <span
-                                        key={v.label}
-                                        className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-blue-50 text-blue-700 border border-blue-200"
-                                        title={`Active subvariant: ${v.label} (${v.sold} units sold)`}
-                                      >
-                                        {v.label.replace(/^Osmo\s+/i, '').replace(/^DJI\s+/i, '')}: {v.sold}
-                                      </span>
-                                    ))}
-                                  {cat.variants.filter((v) => v.selected).length > 4 && (
-                                    <span className="text-[9px] text-slate-400 font-semibold px-1">
-                                      +{cat.variants.filter((v) => v.selected).length - 4} more
-                                    </span>
-                                  )}
-                                </div>
-                              )}
                             </td>
                             {/* Store Columns */}
                             <td className="py-3 px-3 text-center font-bold text-slate-800 bg-slate-50/50">
@@ -914,15 +894,12 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
       </div>
 
       {onUpdateMainPushTargets && (
-        <EditMainPushTargetsModal
-          isOpen={isEditTargetsOpen}
-          onClose={() => setIsEditTargetsOpen(false)}
+        <ImportMainPushTargetsModal
+          isOpen={isImportTargetsOpen}
+          onClose={() => setIsImportTargetsOpen(false)}
           currentTargets={mainPushTargets || {}}
-          currentVariants={mainPushVariants}
-          onSaveTargets={onUpdateMainPushTargets}
+          onUpdateTargets={onUpdateMainPushTargets}
           onResetTargets={onResetMainPushTargets}
-          onDeleteTarget={onDeleteTarget}
-          soldByModel={soldByModelMap}
         />
       )}
     </div>

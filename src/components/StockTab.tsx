@@ -20,9 +20,10 @@ interface StockTabProps {
     totalUnitsInStock: number;
     totalSrpValue: number;
   };
+  units?: UnitTuple[];
 }
 
-export const StockTab: React.FC<StockTabProps> = ({ stockMetrics }) => {
+export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units }) => {
   // Sort series rows by days of cover (lowest cover first)
   const sortedSeriesRows = useMemo(() => {
     return [...stockMetrics.rows].sort((a, b) => {
@@ -39,9 +40,11 @@ export const StockTab: React.FC<StockTabProps> = ({ stockMetrics }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 25;
 
+  const currentUnitsList = units || DJI_DATA.units;
+
   const filteredUnits = useMemo(() => {
     const q = unitSearch.trim().toUpperCase();
-    return DJI_DATA.units.filter((u) => {
+    return currentUnitsList.filter((u) => {
       if (statusFilter !== 'ALL' && u[4] !== statusFilter) return false;
       if (seriesFilter && u[3] !== seriesFilter) return false;
       if (!q) return true;

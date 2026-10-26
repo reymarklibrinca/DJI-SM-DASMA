@@ -10,6 +10,7 @@ import { StaffTab } from './components/StaffTab';
 import { ProductsTab } from './components/ProductsTab';
 import { LeadsTab } from './components/LeadsTab';
 import { StockTab } from './components/StockTab';
+import { ImportInventoryTab } from './components/ImportInventoryTab';
 import { CoachTab } from './components/CoachTab';
 import { TasksTab } from './components/TasksTab';
 import { QuickLogCard } from './components/QuickLogCard';
@@ -181,7 +182,18 @@ export default function App() {
         )}
 
         {store.activeTab === 'i' && (
-          <StockTab stockMetrics={store.stockMetrics} />
+          <StockTab stockMetrics={store.stockMetrics} units={store.activeUnits} />
+        )}
+
+        {store.activeTab === 'inv' && (
+          <ImportInventoryTab
+            units={store.activeUnits}
+            onImportAppend={store.importInventoryAppend}
+            onImportOverride={store.importInventoryOverride}
+            onAddUnit={store.addInventoryUnit}
+            onDeleteUnit={store.deleteInventoryUnit}
+            onResetToMaster={store.resetInventoryToMaster}
+          />
         )}
 
         {store.activeTab === 'c' && (

@@ -38,7 +38,7 @@ const defaultLocalState: LocalStorageState = {
   mainPushVariants: DEFAULT_MAIN_PUSH_VARIANTS,
 };
 
-export type ActiveTab = 'd' | 'b' | 't' | 'y' | 'r' | 's' | 'p' | 'l' | 'i' | 'c' | 'k';
+export type ActiveTab = 'd' | 'b' | 't' | 'y' | 'r' | 's' | 'p' | 'l' | 'i' | 'c' | 'k' | 'inv';
 
 export function useDjiStore() {
   const [localData, setLocalData] = useState<LocalStorageState>(() => {
@@ -56,6 +56,7 @@ export function useDjiStore() {
           pm: parsed.pm || defaultLocalState.pm,
           mainPushTargets: parsed.mainPushTargets !== undefined ? parsed.mainPushTargets : DEFAULT_MAIN_PUSH_TARGETS,
           mainPushVariants: parsed.mainPushVariants !== undefined ? parsed.mainPushVariants : DEFAULT_MAIN_PUSH_VARIANTS,
+          inventoryUnits: Array.isArray(parsed.inventoryUnits) ? parsed.inventoryUnits : undefined,
         };
       }
     } catch (e) {
@@ -99,6 +100,7 @@ export function useDjiStore() {
             goal: typeof initial.goal === 'number' ? initial.goal : defaultLocalState.goal,
             pm: initial.pm || defaultLocalState.pm,
             mainPushTargets: initial.mainPushTargets || defaultLocalState.mainPushTargets,
+            inventoryUnits: Array.isArray(initial.inventoryUnits) ? initial.inventoryUnits : undefined,
           };
           setLocalData(validatedState);
           saveToStorage(validatedState);
@@ -131,6 +133,7 @@ export function useDjiStore() {
           goal: typeof incoming.goal === 'number' ? incoming.goal : defaultLocalState.goal,
           mainPushTargets: incoming.mainPushTargets !== undefined ? incoming.mainPushTargets : (prev.mainPushTargets || defaultLocalState.mainPushTargets),
           mainPushVariants: incoming.mainPushVariants !== undefined ? incoming.mainPushVariants : (prev.mainPushVariants || defaultLocalState.mainPushVariants),
+          inventoryUnits: Array.isArray(incoming.inventoryUnits) ? incoming.inventoryUnits : prev.inventoryUnits,
         };
         saveToStorage(updated);
         return updated;
@@ -196,14 +199,21 @@ export function useDjiStore() {
     return getPeriodRange(endOffset, daysCount, selectedMonth);
   }, [endOffset, daysCount, selectedMonth]);
 
+  // Active inventory registry (custom imported inventory or master DJI_DATA.units)
+  const activeUnits = useMemo<UnitTuple[]>(() => {
+    return localData.inventoryUnits && localData.inventoryUnits.length > 0
+      ? localData.inventoryUnits
+      : DJI_DATA.units;
+  }, [localData.inventoryUnits]);
+
   // Fast Serial Number Lookup Map
   const unitsMap = useMemo(() => {
     const map = new Map<string, UnitTuple>();
-    DJI_DATA.units.forEach((u) => {
+    activeUnits.forEach((u) => {
       map.set(u[0].toUpperCase(), u);
     });
     return map;
-  }, []);
+  }, [activeUnits]);
 
   // Add Sale
   const addSale = useCallback(
@@ -820,6 +830,96 @@ export function useDjiStore() {
     }
   }, [saveToStorage]);
 
+  // Inventory Management: Append new incoming units
+  const importInventoryAppend = useCallback(
+    (newUnits: UnitTuple[]) => {
+      setLocalData((prev) => {
+        const currentList = prev.inventoryUnits && prev.inventoryUnits.length > 0
+          ? prev.inventoryUnits
+          : DJI_DATA.units;
+        const map = new Map<string, UnitTuple>();
+        currentList.forEach((u) => map.set(u[0].toUpperCase(), u));
+        newUnits.forEach((u) => map.set(u[0].toUpperCase(), u));
+        const merged = Array.from(map.values());
+        const updated = {
+          ...prev,
+          inventoryUnits: merged,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
+  // Inventory Management: Override / replace all active units
+  const importInventoryOverride = useCallback(
+    (allUnits: UnitTuple[]) => {
+      setLocalData((prev) => {
+        const updated = {
+          ...prev,
+          inventoryUnits: allUnits,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
+  // Add a single unit to inventory
+  const addInventoryUnit = useCallback(
+    (unit: UnitTuple) => {
+      setLocalData((prev) => {
+        const currentList = prev.inventoryUnits && prev.inventoryUnits.length > 0
+          ? prev.inventoryUnits
+          : DJI_DATA.units;
+        const snUpper = unit[0].toUpperCase();
+        const exists = currentList.some((u) => u[0].toUpperCase() === snUpper);
+        const nextList = exists
+          ? currentList.map((u) => (u[0].toUpperCase() === snUpper ? unit : u))
+          : [unit, ...currentList];
+        const updated = {
+          ...prev,
+          inventoryUnits: nextList,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
+  // Delete a unit from inventory by Serial Number
+  const deleteInventoryUnit = useCallback(
+    (serialNumber: string) => {
+      setLocalData((prev) => {
+        const currentList = prev.inventoryUnits && prev.inventoryUnits.length > 0
+          ? prev.inventoryUnits
+          : DJI_DATA.units;
+        const snUpper = serialNumber.trim().toUpperCase();
+        const nextList = currentList.filter((u) => u[0].toUpperCase() !== snUpper);
+        const updated = {
+          ...prev,
+          inventoryUnits: nextList,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
+  // Reset inventory back to master baseline
+  const resetInventoryToMaster = useCallback(() => {
+    setLocalData((prev) => {
+      const next = { ...prev };
+      delete next.inventoryUnits;
+      saveToStorage(next);
+      return next;
+    });
+  }, [saveToStorage]);
+
   // Search Serial Numbers / EAN
   const searchSerialNumber = useCallback(
     (query: string) => {
@@ -833,14 +933,14 @@ export function useDjiStore() {
       let matches: UnitTuple[] = [];
       if (!exact) {
         if (q.length >= 3) {
-          matches = DJI_DATA.units.filter((u) => {
+          matches = activeUnits.filter((u) => {
             const sn = u[0].toUpperCase();
             const ean = (u[5] || '').toUpperCase();
             return sn.endsWith(q) || ean.endsWith(q);
           });
         }
         if (!matches.length && q.length >= 4) {
-          matches = DJI_DATA.units.filter((u) => {
+          matches = activeUnits.filter((u) => {
             const sn = u[0].toUpperCase();
             const ean = (u[5] || '').toUpperCase();
             return sn.includes(q) || ean.includes(q);
@@ -893,7 +993,7 @@ export function useDjiStore() {
         matches: [],
       };
     },
-    [unitsMap, localData.sales]
+    [unitsMap, activeUnits, localData.sales]
   );
 
   // Store pulse calculations
@@ -927,8 +1027,8 @@ export function useDjiStore() {
 
   // Stock calculations
   const stockMetrics = useMemo(() => {
-    return calculateStockMetrics(allSales, endOffset, localData.sales);
-  }, [allSales, endOffset, localData.sales]);
+    return calculateStockMetrics(allSales, endOffset, localData.sales, activeUnits);
+  }, [allSales, endOffset, localData.sales, activeUnits]);
 
   return {
     staff: DJI_DATA.staff,
@@ -955,6 +1055,12 @@ export function useDjiStore() {
     periodRange,
     pulseMetrics,
     stockMetrics,
+    activeUnits,
+    importInventoryAppend,
+    importInventoryOverride,
+    addInventoryUnit,
+    deleteInventoryUnit,
+    resetInventoryToMaster,
     isCloudLoaded,
     cloudSyncStatus,
     addSale,

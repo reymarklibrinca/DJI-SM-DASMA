@@ -42,6 +42,7 @@ import {
   RotateCcw,
   Edit2,
   Layers,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { MAIN_PUSH_TARGETS, DJI_DATA } from '../data/initialData';
 import { PeriodRange, SaleTuple, StockSeriesCover } from '../types';
@@ -56,7 +57,7 @@ import {
   calculateMainPushBreakdown,
 } from '../utils/calculations';
 import { MainPushBreakdownModal } from './MainPushBreakdownModal';
-import { EditMainPushTargetsModal } from './EditMainPushTargetsModal';
+import { ImportMainPushTargetsModal } from './ImportMainPushTargetsModal';
 
 export interface InventoryWatchItem {
   id: string;
@@ -368,7 +369,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onDeleteMainPushTarget,
 }) => {
   const [isMainPushModalOpen, setIsMainPushModalOpen] = useState(false);
-  const [isEditTargetsOpen, setIsEditTargetsOpen] = useState(false);
+  const [isImportTargetsOpen, setIsImportTargetsOpen] = useState(false);
   const [mainPushCardMode, setMainPushCardMode] = useState<'store' | 'promoters'>('store');
 
   // Mode: 'inventory' (Inventory Watch Only) or 'weather' (Flight Weather & Flyability)
@@ -996,17 +997,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </p>
             </div>
 
-            {/* Quick Mode Toggle & Edit Targets Action */}
+            {/* Quick Mode Toggle & Import Targets (Excel Template) Action */}
             <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
               {onUpdateMainPushTargets && (
                 <button
                   type="button"
-                  onClick={() => setIsEditTargetsOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer shadow-2xs"
-                  title="Customize Monthly Targets & Select Units from Catalog"
+                  onClick={() => setIsImportTargetsOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer shadow-2xs"
+                  title="Import Main Push Monthly Targets using Excel Template (.xlsx)"
                 >
-                  <Layers className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Customize & Catalog</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Import Targets (Excel)</span>
                 </button>
               )}
               <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs">
@@ -1036,33 +1037,50 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
           </div>
 
-          {/* Card View 1: Store Total Meters */}
+          {/* Card View 1: Clean Store Total Meters */}
           {mainPushCardMode === 'store' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {pushData.categories.map((cat) => {
                 const pct = Math.min(100, cat.storePct);
                 return (
-                  <div key={cat.name} className="space-y-1.5">
+                  <div
+                    key={cat.name}
+                    className="p-3 bg-slate-50/70 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors space-y-2"
+                  >
                     <div className="flex justify-between items-center text-xs">
-                      <span className="font-semibold text-slate-800">{cat.name}</span>
-                      <span className="font-bold text-slate-900">
-                        {cat.storeSold} / {cat.storeTarget} units{' '}
-                        <span className="text-slate-500 font-normal">
-                          ({pct.toFixed(0)}%)
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">{cat.name}</span>
+                        {cat.storeRemaining === 0 ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Target Hit!
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-100">
+                            {cat.storeRemaining} remaining
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-slate-900">
+                          {cat.storeSold}{' '}
+                          <span className="text-slate-400 font-normal">/ {cat.storeTarget} units</span>
                         </span>
-                        {cat.storeRemaining > 0 && (
-                          <span className="text-rose-600 font-semibold ml-1.5 text-[11px]">
-                            ({cat.storeRemaining} rem)
-                          </span>
-                        )}
-                        {cat.storeRemaining === 0 && (
-                          <span className="text-emerald-600 font-bold ml-1.5 text-[11px]">
-                            (Target Hit!)
-                          </span>
-                        )}
-                      </span>
+                        <span
+                          className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                            pct >= 80
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : pct >= 50
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {pct.toFixed(0)}%
+                        </span>
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+
+                    <div className="w-full bg-slate-200/80 h-2.5 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-600' : 'bg-amber-500'
@@ -1070,36 +1088,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-
-                    {/* Sub-Variant Pills (e.g. Action 6 Adventure, Action 5 Standard, etc.) */}
-                    {cat.variants && cat.variants.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                        {cat.variants
-                          .filter((v) => v.selected)
-                          .slice(0, 5)
-                          .map((v) => (
-                            <span
-                              key={v.label}
-                              className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-800 border border-slate-200"
-                              title={`Active subvariant: ${v.label} (${v.sold} units sold)`}
-                            >
-                              <span className="text-slate-500 font-normal">
-                                {v.label.replace(/^Osmo\s+/i, '').replace(/^DJI\s+/i, '')}:
-                              </span>{' '}
-                              <strong className="text-slate-900">{v.sold}</strong>
-                            </span>
-                          ))}
-                        {cat.variants.filter((v) => v.selected).length > 5 && (
-                          <button
-                            type="button"
-                            onClick={() => setIsMainPushModalOpen(true)}
-                            className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 cursor-pointer"
-                          >
-                            +{cat.variants.filter((v) => v.selected).length - 5} more combos
-                          </button>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -1881,17 +1869,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         onDeleteTarget={onDeleteMainPushTarget}
       />
 
-      {/* Edit Main Push Targets Modal */}
+      {/* Import Main Push Targets Modal (Excel Template) */}
       {onUpdateMainPushTargets && (
-        <EditMainPushTargetsModal
-          isOpen={isEditTargetsOpen}
-          onClose={() => setIsEditTargetsOpen(false)}
+        <ImportMainPushTargetsModal
+          isOpen={isImportTargetsOpen}
+          onClose={() => setIsImportTargetsOpen(false)}
           currentTargets={mainPushTargets || {}}
-          currentVariants={mainPushVariants}
-          onSaveTargets={onUpdateMainPushTargets}
+          onUpdateTargets={onUpdateMainPushTargets}
           onResetTargets={onResetMainPushTargets}
-          onDeleteTarget={onDeleteMainPushTarget}
-          soldByModel={soldByModelMap}
         />
       )}
     </div>

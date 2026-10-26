@@ -29,6 +29,7 @@ import {
 
 interface ParsedExcelSaleRow {
   rowNumber: number;
+  ean?: string;
   rawDate: any;
   dateOffset: number;
   dateStr: string;
@@ -41,6 +42,7 @@ interface ParsedExcelSaleRow {
   seriesIndex: number;
   price: number;
   units: number;
+  statusText?: string;
   rawLeadType: string;
   leadType: 0 | 1 | 2 | 3;
   leadTypeName: string;
@@ -196,10 +198,18 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
   };
 
   // Process selected sheet from workbook
-  const processSheet = (wb: XLSX.WorkBook, sheetName: string) => {
+  const processSheet = (
+    wb: XLSX.WorkBook,
+    sheetName: string,
+    overrideStaff?: number,
+    overrideDateISO?: string
+  ) => {
     try {
       setIsProcessing(true);
       setParseError(null);
+
+      const staffToUse = overrideStaff !== undefined ? overrideStaff : defaultStaff;
+      const dateToUse = overrideDateISO !== undefined ? overrideDateISO : defaultDateISO;
 
       const ws = wb.Sheets[sheetName];
       if (!ws) {
@@ -219,21 +229,28 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
 
       for (let r = 0; r < Math.min(rawRows.length, 10); r++) {
         const row = rawRows[r].map((cell) => String(cell || '').trim().toLowerCase());
-        const hasSN = row.some((c) => c.includes('sn') || c.includes('serial') || c.includes('barcode'));
-        const hasProduct = row.some((c) => c.includes('product') || c.includes('item') || c.includes('desc') || c.includes('model'));
+        const hasSN = row.some((c) => c.includes('sn') || c.includes('serial'));
+        const hasEAN = row.some((c) => c.includes('ean') || c.includes('barcode') || c.includes('upc'));
+        const hasProduct = row.some((c) => c.includes('product') || c.includes('item') || c.includes('desc') || c.includes('model') || c.includes('name'));
         const hasPrice = row.some((c) => c.includes('price') || c.includes('amount') || c.includes('srp') || c.includes('total'));
         const hasDate = row.some((c) => c.includes('date'));
         const hasStaff = row.some((c) => c.includes('staff') || c.includes('promoter') || c.includes('agent'));
 
-        if ((hasSN || hasProduct) && (hasPrice || hasDate || hasStaff)) {
+        if ((hasSN || hasEAN || hasProduct) && (hasPrice || hasDate || hasStaff || row.some((c) => c.includes('series') || c.includes('status')))) {
           headerRowIndex = r;
           row.forEach((cell, colIdx) => {
-            if (cell.includes('date')) colMap['date'] = colIdx;
-            if (cell.includes('staff') || cell.includes('promoter') || cell.includes('agent') || cell.includes('cashier')) colMap['staff'] = colIdx;
-            if (cell.includes('sn') || cell.includes('serial') || cell.includes('barcode')) colMap['sn'] = colIdx;
-            if (cell.includes('product') || cell.includes('item') || cell.includes('desc') || cell.includes('model') || cell.includes('combo')) colMap['product'] = colIdx;
+            if (cell.includes('ean') || cell.includes('upc') || (cell.includes('barcode') && !cell.includes('sn') && !cell.includes('serial'))) {
+              colMap['ean'] = colIdx;
+            }
+            if (cell.includes('sn') || cell.includes('serial') || cell.includes('imei') || (cell.includes('barcode') && colMap['ean'] === undefined)) {
+              if (!cell.includes('ean')) colMap['sn'] = colIdx;
+            }
+            if (cell.includes('product') || cell.includes('item') || cell.includes('desc') || cell.includes('model') || cell.includes('name')) colMap['product'] = colIdx;
             if (cell.includes('series') || cell.includes('category') || cell.includes('line')) colMap['series'] = colIdx;
-            if (cell.includes('price') || cell.includes('amount') || cell.includes('srp') || cell.includes('total')) colMap['price'] = colIdx;
+            if (cell.includes('price') || cell.includes('amount') || cell.includes('srp') || cell.includes('total') || cell.includes('cost')) colMap['price'] = colIdx;
+            if (cell.includes('status') || cell.includes('state')) colMap['status'] = colIdx;
+            if (cell.includes('date') || cell.includes('day') || cell.includes('time')) colMap['date'] = colIdx;
+            if (cell.includes('staff') || cell.includes('promoter') || cell.includes('agent') || cell.includes('cashier') || cell.includes('seller') || cell.includes('by')) colMap['staff'] = colIdx;
             if (cell.includes('lead') || cell.includes('channel') || cell.includes('source') || cell.includes('type')) colMap['lead'] = colIdx;
             if (cell.includes('unit') || cell.includes('qty') || cell.includes('quantity')) colMap['units'] = colIdx;
           });
@@ -244,7 +261,6 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
       // Fallback if no header row found: guess columns
       if (headerRowIndex === -1) {
         headerRowIndex = 0;
-        // Search first data rows to infer column types
         const firstData = rawRows[0] || [];
         firstData.forEach((val, idx) => {
           const s = String(val).trim();
@@ -255,31 +271,34 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
         });
       }
 
-      const fallbackOffset = dateToDayOffset(defaultDateISO);
+      const fallbackOffset = dateToDayOffset(dateToUse);
       const parsed: ParsedExcelSaleRow[] = [];
 
       for (let i = headerRowIndex + 1; i < rawRows.length; i++) {
         const row = rawRows[i];
         if (!row || row.length === 0 || row.every((c) => c === '')) continue;
 
+        const rawEan = colMap['ean'] !== undefined ? String(row[colMap['ean']] || '').trim() : '';
         const rawDate = colMap['date'] !== undefined ? row[colMap['date']] : '';
         const rawStaff = colMap['staff'] !== undefined ? row[colMap['staff']] : '';
         const rawSN = colMap['sn'] !== undefined ? String(row[colMap['sn']] || '').trim() : '';
         const rawProduct = colMap['product'] !== undefined ? String(row[colMap['product']] || '').trim() : '';
         const rawSeries = colMap['series'] !== undefined ? String(row[colMap['series']] || '').trim() : '';
         const rawPrice = colMap['price'] !== undefined ? row[colMap['price']] : '';
+        const rawStatus = colMap['status'] !== undefined ? String(row[colMap['status']] || '').trim() : '';
         const rawLead = colMap['lead'] !== undefined ? row[colMap['lead']] : '';
         const rawUnits = colMap['units'] !== undefined ? Number(row[colMap['units']]) || 1 : 1;
 
         // Skip completely empty rows
-        if (!rawSN && !rawProduct && !rawPrice) continue;
+        if (!rawSN && !rawProduct && !rawPrice && !rawEan) continue;
 
         const dateResolved = resolveDayOffset(rawDate, fallbackOffset);
-        const staffResolved = resolveStaff(rawStaff, defaultStaff);
+        const staffResolved = resolveStaff(rawStaff, staffToUse);
         const leadResolved = resolveLeadType(rawLead);
 
-        // Resolve Product & Series via SN or Product name
+        // Resolve Product & Series via SN, EAN, or Product name
         let snClean = rawSN.toUpperCase();
+        let eanClean = rawEan;
         let productName = rawProduct;
         let seriesName = rawSeries;
         let price = Number(String(rawPrice).replace(/[^0-9.]/g, '')) || 0;
@@ -292,8 +311,20 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
           productName = unit[1];
           seriesName = unit[3];
           if (!price) price = unit[2];
+          if (!eanClean && unit[5]) eanClean = unit[5];
           status = 'valid';
           statusNote = 'Verified SN Match';
+        } else if (!snClean && rawEan) {
+          // Look up matching unit by EAN in store dataset
+          const unitByEan = DJI_DATA.units.find((u) => u[5] === rawEan);
+          if (unitByEan) {
+            snClean = unitByEan[0];
+            if (!productName) productName = unitByEan[1];
+            if (!seriesName) seriesName = unitByEan[3];
+            if (!price) price = unitByEan[2];
+            status = 'valid';
+            statusNote = 'Matched via EAN Barcode';
+          }
         } else if (rawProduct) {
           const stock = stockMap.get(rawProduct.toUpperCase());
           if (stock) {
@@ -318,13 +349,14 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
           seriesIndex = sIdx >= 0 ? sIdx : 0;
         }
 
-        if (!productName && !snClean) {
+        if (!productName && !snClean && !eanClean) {
           status = 'invalid';
-          statusNote = 'Missing both Product Name and SN';
+          statusNote = 'Missing Product Name, SN, and EAN';
         }
 
         parsed.push({
           rowNumber: i + 1,
+          ean: eanClean,
           rawDate,
           dateOffset: dateResolved.offset,
           dateStr: dateResolved.dateStr,
@@ -337,6 +369,7 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
           seriesIndex,
           price,
           units: rawUnits,
+          statusText: rawStatus || 'SOLD',
           rawLeadType: rawLead,
           leadType: leadResolved.type,
           leadTypeName: leadResolved.name,
@@ -413,16 +446,39 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
     }
   };
 
-  // Download sample template
+  // Download sample template following the official style
   const handleDownloadTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ['Date', 'Promoter', 'Serial Number', 'Product Name', 'Price', 'Lead Type'],
-      ['2026-10-25', 'Christian', '9KRXP3P00BV881', 'Osmo Action 6 Adventure Combo', 31390, 'Walk-in'],
-      ['2026-10-25', 'Donna', 'ANGVP1J0020KTA', 'Osmo Pocket 4 Standard Combo', 27990, 'Revisit'],
-      ['2026-10-25', 'Jobert', '1581F9DEC25AL029CX61', 'DJI Mini 5 Pro', 40690, 'Online'],
-      ['2026-10-25', 'Christian', '1581FA6QC25B700CZ2QJ', 'DJI NEO 2', 12390, 'Walk-in'],
-      ['2026-10-25', 'Donna', '1581FB34C261T00396Z8', 'DJI Lito X1', 21690, 'Walk-in'],
+      [
+        'EAN / Barcode',
+        'Serial Number (SN)',
+        'Product Name',
+        'Price / SRP',
+        'Category / Series',
+        'Status',
+        'Date',
+        'Promoter',
+        'Lead Type',
+      ],
+      ['6941565988113', '9KRXP3P00BV881', 'Osmo Action 6 Adventure Combo', 31390, 'ACTION 6', 'SOLD', '2026-10-26', 'Christian', 'Walk-in'],
+      ['6941565984429', 'ANGVP1J0020KTA', 'Osmo Pocket 4 Standard Combo', 27990, 'POCKET 4P Standard', 'SOLD', '2026-10-26', 'Donna', 'Revisit'],
+      ['6941565982104', '1581F9DEC25AL029CX61', 'DJI Mini 5 Pro', 40690, 'MINI 5 PRO SERIES', 'SOLD', '2026-10-26', 'Jobert', 'Online'],
+      ['6941565981152', '1581FA6QC25B700CZ2QJ', 'DJI NEO 2', 12390, 'DJI NEO 2', 'SOLD', '2026-10-26', 'Christian', 'Walk-in'],
+      ['6941565979814', '1581FB34C261T00396Z8', 'DJI Lito X1', 21690, 'LITO X1', 'SOLD', '2026-10-26', 'Donna', 'Walk-in'],
+      ['6941565983712', '1581F895C262401709R5', 'DJI Air 3S Fly More Combo (DJI RC-N3)', 72490, 'AIR SERIES', 'SOLD', '2026-10-26', 'Christian', 'Walk-in'],
     ]);
+
+    ws['!cols'] = [
+      { wch: 18 }, // EAN / Barcode
+      { wch: 24 }, // Serial Number (SN)
+      { wch: 42 }, // Product Name
+      { wch: 14 }, // Price / SRP
+      { wch: 22 }, // Category / Series
+      { wch: 12 }, // Status
+      { wch: 14 }, // Date
+      { wch: 16 }, // Promoter
+      { wch: 14 }, // Lead Type
+    ];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sales Data');
@@ -485,8 +541,10 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
       (r) =>
         r.productName.toLowerCase().includes(q) ||
         r.serialNumber.toLowerCase().includes(q) ||
+        (r.ean && r.ean.toLowerCase().includes(q)) ||
         r.staffName.toLowerCase().includes(q) ||
-        r.seriesName.toLowerCase().includes(q)
+        r.seriesName.toLowerCase().includes(q) ||
+        (r.statusText && r.statusText.toLowerCase().includes(q))
     );
   }, [parsedRows, searchQuery]);
 
@@ -495,7 +553,7 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -597,23 +655,34 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
                 Supports Microsoft Excel (<strong>.xlsx</strong>, <strong>.xls</strong>) and Comma-Separated Values (<strong>.csv</strong>).
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-4 text-[11px] text-slate-600">
-                <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold">
-                  Date
+              <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4 text-[11px] text-slate-600">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 self-center">Standard Columns:</span>
+                <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-300 font-mono font-bold text-emerald-900 shadow-2xs">
+                  EAN / Barcode
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold">
-                  Promoter
-                </span>
-                <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold">
+                <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-300 font-mono font-bold text-emerald-900 shadow-2xs">
                   Serial Number (SN)
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold">
+                <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-300 font-mono font-bold text-emerald-900 shadow-2xs">
                   Product Name
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold">
-                  Price / Amount
+                <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-300 font-mono font-bold text-emerald-900 shadow-2xs">
+                  Price / SRP
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold">
+                <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-300 font-mono font-bold text-emerald-900 shadow-2xs">
+                  Category / Series
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-white border border-emerald-300 font-mono font-bold text-emerald-900 shadow-2xs">
+                  Status
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mx-1 self-center">+ POS:</span>
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 font-mono text-slate-700">
+                  Date
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 font-mono text-slate-700">
+                  Promoter
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 font-mono text-slate-700">
                   Lead Type
                 </span>
               </div>
@@ -725,8 +794,55 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                 </label>
               </div>
 
+              {/* Fallback Defaults Bar for clean sheets with 6 standard columns */}
+              <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                <div className="text-xs">
+                  <div className="font-bold text-slate-800">Fallback Defaults</div>
+                  <div className="text-[11px] text-slate-500">
+                    Applied if Excel rows lack explicit Date or Promoter columns
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-600">Default Date:</span>
+                    <input
+                      type="date"
+                      value={defaultDateISO}
+                      onChange={(e) => {
+                        const newDate = e.target.value;
+                        setDefaultDateISO(newDate);
+                        if (workbook && selectedSheet) {
+                          processSheet(workbook, selectedSheet, defaultStaff, newDate);
+                        }
+                      }}
+                      className="px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-600">Default Promoter:</span>
+                    <select
+                      value={defaultStaff}
+                      onChange={(e) => {
+                        const newStaff = Number(e.target.value);
+                        setDefaultStaff(newStaff);
+                        if (workbook && selectedSheet) {
+                          processSheet(workbook, selectedSheet, newStaff, defaultDateISO);
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                    >
+                      {staffList.map((st, i) => (
+                        <option key={st} value={i}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               {/* Form Autofill Option */}
-              <div className="pt-2 flex items-center gap-2">
+              <div className="pt-1 flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="populateForm"
@@ -818,18 +934,21 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
               </div>
 
               {/* Data Table */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs max-h-72 overflow-y-auto">
+              <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-2xs max-h-72 overflow-y-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-slate-200">
                     <tr>
-                      <th className="py-2 px-3 w-12 text-center">Row</th>
-                      <th className="py-2 px-3 w-24">Date</th>
-                      <th className="py-2 px-3 w-28">Promoter</th>
-                      <th className="py-2 px-3 w-36">Serial Number</th>
-                      <th className="py-2 px-3">Product / Subvariant</th>
-                      <th className="py-2 px-3 w-24 text-right">Price</th>
-                      <th className="py-2 px-3 w-24">Lead Type</th>
-                      <th className="py-2 px-3 w-28 text-center">Status</th>
+                      <th className="py-2.5 px-3 w-10 text-center font-mono">#</th>
+                      <th className="py-2.5 px-3 w-32">EAN / Barcode</th>
+                      <th className="py-2.5 px-3 w-36">Serial Number (SN)</th>
+                      <th className="py-2.5 px-3 min-w-[200px]">Product Name</th>
+                      <th className="py-2.5 px-3 w-28 text-right">Price / SRP</th>
+                      <th className="py-2.5 px-3 w-32">Category / Series</th>
+                      <th className="py-2.5 px-3 w-24 text-center">Status</th>
+                      <th className="py-2.5 px-3 w-24">Date</th>
+                      <th className="py-2.5 px-3 w-28">Promoter</th>
+                      <th className="py-2.5 px-3 w-20">Lead Type</th>
+                      <th className="py-2.5 px-3 w-24 text-center">Validation</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-sans">
@@ -848,33 +967,47 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                           {row.rowNumber}
                         </td>
                         <td className="py-2 px-3 font-mono text-[11px] whitespace-nowrap">
-                          {row.dateStr}
+                          {row.ean ? (
+                            <span className="font-semibold text-slate-800">{row.ean}</span>
+                          ) : (
+                            <span className="text-slate-400 italic text-[10px]">-</span>
+                          )}
                         </td>
-                        <td className="py-2 px-3 font-semibold text-slate-900">
-                          {row.staffName}
-                        </td>
-                        <td className="py-2 px-3 font-mono text-xs">
+                        <td className="py-2 px-3 font-mono text-xs whitespace-nowrap">
                           {row.serialNumber ? (
                             <span className="font-bold text-slate-900">{row.serialNumber}</span>
                           ) : (
-                            <span className="text-slate-400 italic">No SN</span>
+                            <span className="text-slate-400 italic text-[10px]">No SN</span>
                           )}
                         </td>
                         <td className="py-2 px-3 font-medium">
-                          <div>{row.productName}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            {row.seriesName}
-                          </div>
+                          <div className="font-bold text-slate-900">{row.productName}</div>
                         </td>
-                        <td className="py-2 px-3 text-right font-mono font-semibold">
+                        <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">
                           {formatCurrency(row.price)}
                         </td>
-                        <td className="py-2 px-3 text-[11px]">
-                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium border border-slate-200">
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-[10px] font-semibold border border-slate-200">
+                            {row.seriesName}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-slate-100 text-slate-700 border border-slate-200 uppercase">
+                            {row.statusText || 'SOLD'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 font-mono text-[11px] whitespace-nowrap text-slate-600">
+                          {row.dateStr}
+                        </td>
+                        <td className="py-2 px-3 font-semibold text-slate-900 whitespace-nowrap">
+                          {row.staffName}
+                        </td>
+                        <td className="py-2 px-3 text-[11px] whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium border border-slate-200 text-[10px]">
                             {row.leadTypeName}
                           </span>
                         </td>
-                        <td className="py-2 px-3 text-center">
+                        <td className="py-2 px-3 text-center whitespace-nowrap">
                           <span
                             className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               row.status === 'valid'

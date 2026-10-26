@@ -11,6 +11,7 @@ import {
   Layers,
   Lightbulb,
   CheckSquare,
+  PackagePlus,
 } from 'lucide-react';
 import { ActiveTab } from '../hooks/useDjiStore';
 import { getMonthKey, getMonthName } from '../utils/calculations';
@@ -35,6 +36,7 @@ const TABS: { id: ActiveTab; label: string; icon: React.FC<{ className?: string 
   { id: 'p', label: 'Products', icon: Box },
   { id: 'l', label: 'Leads', icon: UserCheck },
   { id: 'i', label: 'Stock & SN', icon: Layers },
+  { id: 'inv', label: 'Import Inventory', icon: PackagePlus },
   { id: 'c', label: 'Retail Coach', icon: Lightbulb },
   { id: 'k', label: 'Routine Tasks', icon: CheckSquare },
 ];

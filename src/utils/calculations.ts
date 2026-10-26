@@ -272,7 +272,8 @@ export function aggregateLeadsOverRange(
 export function calculateStockMetrics(
   sales: SaleTuple[],
   endOffset: number,
-  localSales: SaleTuple[] = []
+  localSales: SaleTuple[] = [],
+  customUnits?: UnitTuple[]
 ): {
   rows: StockSeriesCover[];
   totalUnitsInStock: number;
@@ -283,20 +284,37 @@ export function calculateStockMetrics(
   let totalUnitsInStock = 0;
   let totalSrpValue = 0;
 
-  // Base stock from D.stock
-  DJI_DATA.stock.forEach((item) => {
-    const seriesName = item[0];
-    const qty = item[3];
-    const price = item[2];
-    const q = seriesMap[seriesName] || (seriesMap[seriesName] = { in: 0, sold: 0 });
-    q.in += qty;
-    totalUnitsInStock += qty;
-    totalSrpValue += qty * price;
-  });
+  const effectiveUnits = customUnits && customUnits.length > 0 ? customUnits : DJI_DATA.units;
+
+  if (customUnits && customUnits.length > 0) {
+    // Tally stock directly from effectiveUnits
+    effectiveUnits.forEach((u) => {
+      const seriesName = u[3] || 'GENERAL';
+      const q = seriesMap[seriesName] || (seriesMap[seriesName] = { in: 0, sold: 0 });
+      if (u[4] === 'IN STOCK') {
+        q.in += 1;
+        totalUnitsInStock += 1;
+        totalSrpValue += u[2] || 0;
+      } else {
+        q.sold += 1;
+      }
+    });
+  } else {
+    // Base stock from D.stock
+    DJI_DATA.stock.forEach((item) => {
+      const seriesName = item[0];
+      const qty = item[3];
+      const price = item[2];
+      const q = seriesMap[seriesName] || (seriesMap[seriesName] = { in: 0, sold: 0 });
+      q.in += qty;
+      totalUnitsInStock += qty;
+      totalSrpValue += qty * price;
+    });
+  }
 
   // Subtract locally recorded sales if they mapped to an in-stock unit
   const unitsMap = new Map<string, UnitTuple>();
-  DJI_DATA.units.forEach((u) => unitsMap.set(u[0].toUpperCase(), u));
+  effectiveUnits.forEach((u) => unitsMap.set(u[0].toUpperCase(), u));
 
   localSales.forEach((s) => {
     const sn = s[6]?.toUpperCase();
@@ -304,8 +322,8 @@ export function calculateStockMetrics(
       const unit = unitsMap.get(sn)!;
       if (unit[4] === 'IN STOCK' && seriesMap[unit[3]]) {
         seriesMap[unit[3]].in = Math.max(0, seriesMap[unit[3]].in - 1);
-        totalUnitsInStock--;
-        totalSrpValue -= unit[2];
+        totalUnitsInStock = Math.max(0, totalUnitsInStock - 1);
+        totalSrpValue = Math.max(0, totalSrpValue - unit[2]);
       }
     }
   });
