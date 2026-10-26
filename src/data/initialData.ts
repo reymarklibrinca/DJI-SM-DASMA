@@ -4,11 +4,11 @@ import { DjiDataset } from '../types';
 export const DJI_DATA: DjiDataset = rawData as unknown as DjiDataset;
 
 export const MAIN_PUSH_TARGETS: [name: string, sold: number, target: number][] = [
-  ['Mini 5 Pro', 6, 9],
-  ['NEO Series', 10, 18],
-  ['Lito X1', 7, 15],
-  ['OA Series', 25, 54],
-  ['Pocket Series', 13, 45],
+  ['Mini 5 Pro', 0, 9],
+  ['NEO Series', 0, 18],
+  ['Lito X1', 0, 15],
+  ['OA Series', 0, 54],
+  ['Pocket Series', 0, 45],
 ];
 
 export const ROUTINE_TASKS: string[] = [

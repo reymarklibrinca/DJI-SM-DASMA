@@ -183,10 +183,10 @@ export function useDjiStore() {
 
   // End day offset for calculations
   const endOffset = useMemo(() => {
-    const maxSaleDay = allSales.reduce((max, s) => Math.max(max, s[0]), 83);
+    const maxSaleDay = allSales.reduce((max, s) => Math.max(max, s[0]), todayDayOffset);
     const maxLeadDay = Object.keys(localData.leads).reduce(
       (max, d) => Math.max(max, Number(d)),
-      83
+      todayDayOffset
     );
     return Math.max(maxSaleDay, maxLeadDay, todayDayOffset);
   }, [allSales, localData.leads, todayDayOffset]);
@@ -799,6 +799,27 @@ export function useDjiStore() {
     saveToStorage(defaultLocalState);
   }, [saveToStorage]);
 
+  // Completely wipe all system transactions, leads, tasks, and finalized day records
+  const clearAllSystemData = useCallback(async () => {
+    const cleanState: LocalStorageState = {
+      sales: [],
+      tasks: {},
+      leads: {},
+      final: {},
+      goal: defaultLocalState.goal,
+      pm: defaultLocalState.pm,
+      mainPushTargets: DEFAULT_MAIN_PUSH_TARGETS,
+      mainPushVariants: DEFAULT_MAIN_PUSH_VARIANTS,
+    };
+    setLocalData(cleanState);
+    saveToStorage(cleanState);
+    try {
+      await saveCloudData(cleanState);
+    } catch (e) {
+      console.error('Failed to clear cloud database:', e);
+    }
+  }, [saveToStorage]);
+
   // Search Serial Numbers / EAN
   const searchSerialNumber = useCallback(
     (query: string) => {
@@ -958,5 +979,6 @@ export function useDjiStore() {
     exportDataJSON,
     importDataJSON,
     resetToOriginalData,
+    clearAllSystemData,
   };
 }

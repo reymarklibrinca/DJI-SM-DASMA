@@ -14,10 +14,12 @@ import { CoachTab } from './components/CoachTab';
 import { TasksTab } from './components/TasksTab';
 import { QuickLogCard } from './components/QuickLogCard';
 import { BackupModal } from './components/BackupModal';
+import { ClearSystemDataModal } from './components/ClearSystemDataModal';
 
 export default function App() {
   const store = useDjiStore();
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isClearDataModalOpen, setIsClearDataModalOpen] = useState(false);
   const quickLogRef = useRef<HTMLDivElement>(null);
 
   const scrollToQuickLog = () => {
@@ -44,7 +46,7 @@ export default function App() {
         onUpdateDailyGoal={store.updateDailyGoal}
         onExport={store.exportDataJSON}
         onImportClick={() => setIsBackupModalOpen(true)}
-        onReset={store.resetToOriginalData}
+        onReset={() => setIsClearDataModalOpen(true)}
         onJumpToQuickLog={scrollToQuickLog}
       />
 
@@ -119,6 +121,7 @@ export default function App() {
                 onRemoveLead={store.removeLead}
                 onResetLeads={store.resetLeadsForDay}
                 onToggleFinalize={store.toggleFinalizeDay}
+                onClearAllSystemData={() => setIsClearDataModalOpen(true)}
                 onSearchSN={store.searchSerialNumber}
               />
             </div>
@@ -221,6 +224,14 @@ export default function App() {
         onExport={store.exportDataJSON}
         onImport={store.importDataJSON}
         onReset={store.resetToOriginalData}
+      />
+
+      {/* Clear All System Data Modal */}
+      <ClearSystemDataModal
+        isOpen={isClearDataModalOpen}
+        onClose={() => setIsClearDataModalOpen(false)}
+        onConfirmClear={store.clearAllSystemData}
+        currentSalesCount={store.allSales.length}
       />
     </div>
   );

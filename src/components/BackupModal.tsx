@@ -39,11 +39,12 @@ export const BackupModal: React.FC<BackupModalProps> = ({
     e.target.value = '';
   };
 
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+
   const handleResetConfirm = () => {
-    if (window.confirm('Are you sure you want to clear your local logs and reset to the master store file?')) {
-      onReset();
-      setFeedback({ type: 'success', text: 'Store reset to master data successfully.' });
-    }
+    onReset();
+    setIsConfirmingReset(false);
+    setFeedback({ type: 'success', text: 'Store reset to master data successfully.' });
   };
 
   return (
@@ -137,13 +138,33 @@ export const BackupModal: React.FC<BackupModalProps> = ({
                 Reverts browser state back to the original DJI October file.
               </div>
             </div>
-            <button
-              onClick={handleResetConfirm}
-              className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
+            {isConfirmingReset ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleResetConfirm}
+                  className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs"
+                >
+                  Confirm Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingReset(false)}
+                  className="px-2 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsConfirmingReset(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
         </div>
 

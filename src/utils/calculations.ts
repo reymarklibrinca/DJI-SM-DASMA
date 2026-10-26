@@ -183,9 +183,7 @@ export function getPeriodRange(
   };
 }
 
-export const HARDCODED_LEADS: Record<number, [number, number, number]> = {
-  83: [5, 0, 1], // Oct 23 report: 5 walk-in, 0 revisit, 1 online
-};
+export const HARDCODED_LEADS: Record<number, [number, number, number]> = {};
 
 export function getLeadsForDay(
   dayOffset: number,
@@ -365,16 +363,13 @@ export function generateDailyReportText(
     lines.push('');
   });
 
-  if (dayOffset === 83) {
-    lines.push('Main Push');
-    lines.push('Mini 5 Pro: 6/9');
-    lines.push('NEO Series: 10/18');
-    lines.push('Lito X1: 7/15');
-    lines.push('OA Series: 25/54');
-    lines.push('Pocket Series: 13/45');
+  const monthPush = calculateMainPushBreakdown(sales, staffList, dayOffsetToDate(dayOffset).getMonth());
+  if (monthPush.categories.length > 0) {
+    lines.push('Main Push Targets (October)');
+    monthPush.categories.forEach((cat) => {
+      lines.push(`${cat.name}: ${cat.storeSold}/${cat.storeTarget}`);
+    });
     lines.push('');
-    lines.push('Gap reason: lost sales due to no credit card payment.');
-    lines.push('Low or out of stock: OM8, Lito X1 FMC PLUS, Lito X1 FMC RC2.');
   }
 
   return lines.join('\n').trim();

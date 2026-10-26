@@ -60,6 +60,7 @@ interface QuickLogCardProps {
   onRemoveLead: (dayOffset: number, staffIndex: number | string, leadType: 0 | 1 | 2) => { success: boolean; message: string };
   onResetLeads?: (dayOffset: number) => { success: boolean; message: string };
   onToggleFinalize: (dayOffset: number) => void;
+  onClearAllSystemData?: () => void;
   onSearchSN: (query: string) => {
     type: 'exact' | 'multiple' | 'none';
     unit?: UnitTuple;
@@ -87,6 +88,7 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
   onRemoveLead,
   onResetLeads,
   onToggleFinalize,
+  onClearAllSystemData,
   onSearchSN,
 }) => {
   // Form State
@@ -448,6 +450,18 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
               <Zap className="w-3.5 h-3.5 fill-current" />
               <span>Bulk Quick Log (Paste SN)</span>
             </button>
+
+            {onClearAllSystemData && (
+              <button
+                type="button"
+                onClick={onClearAllSystemData}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-all cursor-pointer shadow-xs active:scale-98"
+                title="Delete all data in the system (0 sales, 0 leads, fresh start)"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>Clear All Data</span>
+              </button>
+            )}
 
             <button
               onClick={() => onToggleFinalize(selectedDayOffset)}
