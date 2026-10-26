@@ -16,6 +16,7 @@ import {
   Calendar,
   Sparkles,
   Edit2,
+  Layers,
 } from 'lucide-react';
 import { SaleTuple } from '../types';
 import { DJI_DATA, MAIN_PUSH_TARGETS } from '../data/initialData';
@@ -192,10 +193,10 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
                 type="button"
                 onClick={() => setIsEditTargetsOpen(true)}
                 className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-xs cursor-pointer"
-                title="Edit Main Push Targets"
+                title="Customize Main Push Targets & Catalog"
               >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span>Edit Targets</span>
+                <Layers className="w-3.5 h-3.5" />
+                <span>Customize & Catalog</span>
               </button>
             )}
             <button

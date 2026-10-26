@@ -41,6 +41,7 @@ import {
   ShieldAlert,
   RotateCcw,
   Edit2,
+  Layers,
 } from 'lucide-react';
 import { MAIN_PUSH_TARGETS, DJI_DATA } from '../data/initialData';
 import { PeriodRange, SaleTuple, StockSeriesCover } from '../types';
@@ -1002,10 +1003,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   type="button"
                   onClick={() => setIsEditTargetsOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer shadow-2xs"
-                  title="Customize Monthly Unit Targets"
+                  title="Customize Monthly Targets & Select Units from Catalog"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  <span>Edit Targets</span>
+                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Customize & Catalog</span>
                 </button>
               )}
               <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs">
