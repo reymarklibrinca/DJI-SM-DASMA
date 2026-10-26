@@ -13,6 +13,8 @@ import {
   ShoppingBag,
   RotateCcw,
   Zap,
+  FileSpreadsheet,
+  Upload,
 } from 'lucide-react';
 import { DJI_DATA, LEAD_TYPE_NAMES } from '../data/initialData';
 import { SaleTuple, UnitTuple } from '../types';
@@ -23,6 +25,7 @@ import {
   formatISODate,
 } from '../utils/calculations';
 import { BulkQuickLogModal } from './BulkQuickLogModal';
+import { ImportExcelModal } from './ImportExcelModal';
 
 interface QuickLogCardProps {
   todayOffset: number;
@@ -50,6 +53,8 @@ interface QuickLogCardProps {
       leadType?: number;
     }>
   ) => { success: boolean; count: number; message: string; errors?: string[] };
+  onOverrideSales?: (sales: SaleTuple[]) => { success: boolean; count: number; message: string };
+  onAppendSales?: (sales: SaleTuple[]) => { success: boolean; count: number; message: string };
   onDeleteSale: (index: number) => { success: boolean; message: string };
   onAddLead: (dayOffset: number, staffIndex: number | string, leadType: 0 | 1 | 2) => { success: boolean; message: string };
   onRemoveLead: (dayOffset: number, staffIndex: number | string, leadType: 0 | 1 | 2) => { success: boolean; message: string };
@@ -75,6 +80,8 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
   finalizedDays,
   onAddSale,
   onAddSalesBulk,
+  onOverrideSales,
+  onAppendSales,
   onDeleteSale,
   onAddLead,
   onRemoveLead,
@@ -84,6 +91,7 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
 }) => {
   // Form State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isImportExcelOpen, setIsImportExcelOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<number>(0);
   const [selectedDateISO, setSelectedDateISO] = useState<string>(formatISODate(todayOffset));
   const [leadType, setLeadType] = useState<0 | 1 | 2>(0);
@@ -423,6 +431,16 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={() => setIsImportExcelOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer shadow-xs active:scale-98"
+              title="Import Excel file (.xlsx, .xls, .csv) to override current input data"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Import Excel</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsBulkModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all cursor-pointer shadow-xs active:scale-98"
               title="Bulk Quick Log by Serial Number for a Promoter"
@@ -580,6 +598,16 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
             >
               <Plus className="w-4 h-4" />
               <span>Record Sale</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsImportExcelOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-bold text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all cursor-pointer"
+              title="Import Excel file to override current input data"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Import Excel to Override Data</span>
             </button>
           </div>
 
@@ -858,6 +886,50 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
             };
           })
         }
+      />
+
+      {/* Import Excel Modal Window to Override or Append Data */}
+      <ImportExcelModal
+        isOpen={isImportExcelOpen}
+        onClose={() => setIsImportExcelOpen(false)}
+        staffList={staffList}
+        todayOffset={todayOffset}
+        onImportOverride={(sales, populateFormItem) => {
+          if (onOverrideSales) {
+            onOverrideSales(sales);
+            setStatusFeedback({
+              type: 'success',
+              text: `Excel imported successfully! ${sales.length} transactions loaded (current input data overridden).`,
+            });
+          }
+          if (populateFormItem) {
+            setSelectedStaff(populateFormItem.staffIndex);
+            setSelectedDateISO(populateFormItem.dateISO);
+            setSnQuery(populateFormItem.serialNumber);
+            setPrice(populateFormItem.price);
+            setLeadType(populateFormItem.leadType);
+            const pIdx = productList.findIndex(
+              (p) => p[1].toLowerCase() === populateFormItem.productName.toLowerCase()
+            );
+            if (pIdx >= 0) setSelectedProductIndex(pIdx);
+          }
+        }}
+        onImportAppend={(sales, populateFormItem) => {
+          if (onAppendSales) {
+            onAppendSales(sales);
+            setStatusFeedback({
+              type: 'success',
+              text: `Excel imported successfully! ${sales.length} transactions appended.`,
+            });
+          }
+          if (populateFormItem) {
+            setSelectedStaff(populateFormItem.staffIndex);
+            setSelectedDateISO(populateFormItem.dateISO);
+            setSnQuery(populateFormItem.serialNumber);
+            setPrice(populateFormItem.price);
+            setLeadType(populateFormItem.leadType);
+          }
+        }}
       />
     </div>
   );

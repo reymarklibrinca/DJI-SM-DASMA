@@ -393,6 +393,46 @@ export function useDjiStore() {
     [localData.final, localData.sales, unitsMap, saveToStorage]
   );
 
+  // Override local sales with imported sales from Excel (replaces current input sales data)
+  const overrideSales = useCallback(
+    (newSales: SaleTuple[]): { success: boolean; count: number; message: string } => {
+      setLocalData((prev) => {
+        const updated: LocalStorageState = {
+          ...prev,
+          sales: [...newSales],
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+      return {
+        success: true,
+        count: newSales.length,
+        message: `Successfully loaded ${newSales.length} transactions (current input data overridden).`,
+      };
+    },
+    [saveToStorage]
+  );
+
+  // Append imported sales
+  const appendSales = useCallback(
+    (newSales: SaleTuple[]): { success: boolean; count: number; message: string } => {
+      setLocalData((prev) => {
+        const updated: LocalStorageState = {
+          ...prev,
+          sales: [...prev.sales, ...newSales],
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+      return {
+        success: true,
+        count: newSales.length,
+        message: `Successfully appended ${newSales.length} transactions.`,
+      };
+    },
+    [saveToStorage]
+  );
+
   // Delete local sale
   const deleteSale = useCallback(
     (localSaleIndex: number): { success: boolean; message: string } => {
@@ -898,6 +938,8 @@ export function useDjiStore() {
     cloudSyncStatus,
     addSale,
     addSalesBulk,
+    overrideSales,
+    appendSales,
     deleteSale,
     addLead,
     removeLead,

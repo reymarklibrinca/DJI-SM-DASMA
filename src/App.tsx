@@ -112,6 +112,8 @@ export default function App() {
                 finalizedDays={store.finalizedDays}
                 onAddSale={store.addSale}
                 onAddSalesBulk={store.addSalesBulk}
+                onOverrideSales={store.overrideSales}
+                onAppendSales={store.appendSales}
                 onDeleteSale={store.deleteSale}
                 onAddLead={store.addLead}
                 onRemoveLead={store.removeLead}
