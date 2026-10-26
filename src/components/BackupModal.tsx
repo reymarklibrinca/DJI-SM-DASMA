@@ -17,6 +17,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
   onReset,
 }) => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -38,8 +39,6 @@ export const BackupModal: React.FC<BackupModalProps> = ({
     reader.readAsText(file);
     e.target.value = '';
   };
-
-  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
 
   const handleResetConfirm = () => {
     onReset();

@@ -130,8 +130,6 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
     setSearchQuery('');
   };
 
-  if (!isOpen) return null;
-
   // Helper to parse date from string or Excel serial number
   const resolveDayOffset = (val: any, fallbackOffset: number): { offset: number; dateStr: string } => {
     if (val === undefined || val === null || val === '') {
@@ -491,6 +489,8 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
         r.seriesName.toLowerCase().includes(q)
     );
   }, [parsedRows, searchQuery]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
