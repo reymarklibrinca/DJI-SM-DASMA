@@ -1,4 +1,5 @@
 import { fetchCloudData, saveCloudData, subscribeToCloudData } from '../cloudStorage';
+import { reconcileStoreState } from '../utils/syncReconciliation';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { DJI_DATA, ROUTINE_TASKS } from '../data/initialData';
 import {
@@ -74,7 +75,15 @@ export function useDjiStore() {
   // Cloud flags & debounce refs
   const [isCloudLoaded, setIsCloudLoaded] = useState<boolean>(false);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'connected' | 'syncing' | 'offline' | 'loading'>('loading');
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastLocalEditTimeRef = useRef<number>(0);
+  const isSavingRef = useRef<boolean>(false);
+
+  // Record a user mutation timestamp to protect against race conditions
+  const recordMutation = useCallback(() => {
+    lastLocalEditTimeRef.current = Date.now();
+  }, []);
 
   // Sync to localStorage as backup
   const saveToStorage = useCallback((state: LocalStorageState) => {
@@ -85,30 +94,35 @@ export function useDjiStore() {
     }
   }, []);
 
-  // 1. Firebase Initial Load + Real-Time Live Sync Listener
+  // 1. Firebase Initial Load + Non-Destructive Bidirectional Reconciliation
   useEffect(() => {
     let isMounted = true;
 
     async function initCloud() {
       try {
         const initial = await fetchCloudData();
-        if (initial && isMounted) {
-          const validatedState: LocalStorageState = {
-            sales: Array.isArray(initial.sales) ? initial.sales : [],
-            tasks: initial.tasks || {},
-            leads: initial.leads || {},
-            final: initial.final || {},
-            goal: typeof initial.goal === 'number' ? initial.goal : defaultLocalState.goal,
-            pm: initial.pm || defaultLocalState.pm,
-            mainPushTargets: initial.mainPushTargets || defaultLocalState.mainPushTargets,
-            mainPushVariants: initial.mainPushVariants || defaultLocalState.mainPushVariants,
-            inventoryUnits: Array.isArray(initial.inventoryUnits) ? initial.inventoryUnits : undefined,
-            hasCustomInventory: Boolean(initial.hasCustomInventory),
-          };
-          setLocalData(validatedState);
-          saveToStorage(validatedState);
+        if (isMounted) {
+          if (initial) {
+            setLocalData((prevLocal) => {
+              // Non-destructively reconcile local entries with cloud state
+              // All local sales, tasks, leads, custom targets, and subvariants are preserved!
+              const { reconciled, hadAdditionsFromLocal } = reconcileStoreState(prevLocal, initial, {
+                preferLocal: true,
+              });
+              saveToStorage(reconciled);
+
+              // If local state had sales or edits that were not yet in Firestore, upload reconciled truth immediately!
+              if (hadAdditionsFromLocal) {
+                saveCloudData(reconciled).catch((e) => console.warn('Cloud sync push error:', e));
+              }
+              return reconciled;
+            });
+          } else {
+            // Document does not exist yet: push current local state to Firestore so nothing is lost
+            saveCloudData(localData).catch((e) => console.warn('Cloud sync init error:', e));
+          }
+          setCloudSyncStatus('connected');
         }
-        if (isMounted) setCloudSyncStatus('connected');
       } catch (err) {
         console.error('Error on Firebase startup fetch:', err);
         if (isMounted) setCloudSyncStatus('offline');
@@ -119,28 +133,36 @@ export function useDjiStore() {
 
     initCloud();
 
-    // Listen for live updates across other devices (Phone/PC)
+    // Listen for live updates across other devices (Phone/PC) with strict anti-clobber protection
     const unsubscribe = subscribeToCloudData((incoming) => {
       if (!incoming || !isMounted) return;
       if (isMounted) setCloudSyncStatus('connected');
 
-      setLocalData((prev) => {
-        // Prevent redundant state updates if incoming matches current state
-        if (JSON.stringify(prev) === JSON.stringify(incoming)) return prev;
+      // Check if user recently edited within the last 3500ms
+      const timeSinceLastEdit = Date.now() - lastLocalEditTimeRef.current;
+      const hasRecentLocalMutation = timeSinceLastEdit < 3500;
 
-        const updated: LocalStorageState = {
-          sales: Array.isArray(incoming.sales) ? incoming.sales : [],
-          tasks: incoming.tasks || {},
-          leads: incoming.leads || {},
-          final: incoming.final || {},
-          goal: typeof incoming.goal === 'number' ? incoming.goal : defaultLocalState.goal,
-          mainPushTargets: incoming.mainPushTargets !== undefined ? incoming.mainPushTargets : (prev.mainPushTargets || defaultLocalState.mainPushTargets),
-          mainPushVariants: incoming.mainPushVariants !== undefined ? incoming.mainPushVariants : (prev.mainPushVariants || defaultLocalState.mainPushVariants),
-          inventoryUnits: Array.isArray(incoming.inventoryUnits) ? incoming.inventoryUnits : prev.inventoryUnits,
-          hasCustomInventory: incoming.hasCustomInventory !== undefined ? Boolean(incoming.hasCustomInventory) : prev.hasCustomInventory,
-        };
-        saveToStorage(updated);
-        return updated;
+      recordMutation();
+      setLocalData((prev) => {
+        // Reconcile non-destructively: local inputs are never wiped out
+        const { reconciled, hadAdditionsFromLocal } = reconcileStoreState(
+          prev,
+          incoming,
+          { preferLocal: hasRecentLocalMutation }
+        );
+
+        if (JSON.stringify(prev) === JSON.stringify(reconciled)) {
+          return prev;
+        }
+
+        saveToStorage(reconciled);
+
+        // If local had inputs that Firestore lacked (race condition), push reconciled state
+        if (hadAdditionsFromLocal && !hasRecentLocalMutation) {
+          saveCloudData(reconciled).catch((e) => console.warn('Cloud sync reconciliation push error:', e));
+        }
+
+        return reconciled;
       });
     });
 
@@ -161,6 +183,7 @@ export function useDjiStore() {
     setCloudSyncStatus('syncing');
 
     saveTimeoutRef.current = setTimeout(() => {
+      isSavingRef.current = true;
       saveCloudData(localData)
         .then((ok) => {
           setCloudSyncStatus(ok ? 'connected' : 'offline');
@@ -168,6 +191,9 @@ export function useDjiStore() {
         .catch((err) => {
           console.error('Failed to sync to Firebase cloud:', err);
           setCloudSyncStatus('offline');
+        })
+        .finally(() => {
+          isSavingRef.current = false;
         });
     }, 1000);
 
@@ -177,6 +203,36 @@ export function useDjiStore() {
       }
     };
   }, [localData, isCloudLoaded]);
+
+  // Manual Trigger to Sync & Reconcile Now
+  const syncNow = useCallback(async (): Promise<{ success: boolean; message: string }> => {
+    setCloudSyncStatus('syncing');
+    setSyncFeedback('Syncing with Firebase...');
+    try {
+      const remote = await fetchCloudData();
+      let nextState = localData;
+      if (remote) {
+        const { reconciled } = reconcileStoreState(localData, remote, { preferLocal: true });
+        nextState = reconciled;
+        setLocalData(reconciled);
+        saveToStorage(reconciled);
+      }
+      const ok = await saveCloudData(nextState);
+      setCloudSyncStatus(ok ? 'connected' : 'offline');
+      const msg = ok
+        ? 'Synced with Firebase! All sales, leads, tasks, and targets preserved.'
+        : 'Firebase unreachable. Local changes preserved in browser.';
+      setSyncFeedback(msg);
+      setTimeout(() => setSyncFeedback(null), 4000);
+      return { success: ok, message: msg };
+    } catch (err: any) {
+      setCloudSyncStatus('offline');
+      const msg = `Sync error: ${err?.message || 'Network error'}`;
+      setSyncFeedback(msg);
+      setTimeout(() => setSyncFeedback(null), 4000);
+      return { success: false, message: msg };
+    }
+  }, [localData, saveToStorage]);
 
   // Combined sales (static + local)
   const allSales = useMemo<SaleTuple[]>(() => {
@@ -290,6 +346,7 @@ export function useDjiStore() {
         leadType !== undefined ? leadType : 3,
       ];
 
+      recordMutation();
       setLocalData((prev) => {
         const updated = {
           ...prev,
@@ -395,6 +452,7 @@ export function useDjiStore() {
         };
       }
 
+      recordMutation();
       setLocalData((prev) => {
         const updated = {
           ...prev,
@@ -418,6 +476,7 @@ export function useDjiStore() {
   // Override local sales with imported sales from Excel (replaces current input sales data)
   const overrideSales = useCallback(
     (newSales: SaleTuple[]): { success: boolean; count: number; message: string } => {
+      recordMutation();
       setLocalData((prev) => {
         const updated: LocalStorageState = {
           ...prev,
@@ -438,6 +497,7 @@ export function useDjiStore() {
   // Append imported sales
   const appendSales = useCallback(
     (newSales: SaleTuple[]): { success: boolean; count: number; message: string } => {
+      recordMutation();
       setLocalData((prev) => {
         const updated: LocalStorageState = {
           ...prev,
@@ -468,6 +528,7 @@ export function useDjiStore() {
         };
       }
 
+      recordMutation();
       setLocalData((prev) => {
         const nextSales = [...prev.sales];
         nextSales.splice(localSaleIndex, 1);
@@ -494,6 +555,7 @@ export function useDjiStore() {
         };
       }
 
+      recordMutation();
       setLocalData((prev) => {
         const dayLeads = { ...(prev.leads[dayOffset] || {}) };
         const staffKey = String(staffIndex);
@@ -529,6 +591,7 @@ export function useDjiStore() {
         };
       }
 
+      recordMutation();
       setLocalData((prev) => {
         const dayLeads = { ...(prev.leads[dayOffset] || {}) };
         const staffKey = String(staffIndex);
@@ -573,6 +636,7 @@ export function useDjiStore() {
         };
       }
 
+      recordMutation();
       setLocalData((prev) => {
         const nextLeads = { ...prev.leads };
         delete nextLeads[dayOffset];
@@ -594,7 +658,8 @@ export function useDjiStore() {
 
   // Reset All Leads across entire store
   const resetAllLeads = useCallback((): { success: boolean; message: string } => {
-    setLocalData((prev) => {
+    recordMutation();
+      setLocalData((prev) => {
       const updated = {
         ...prev,
         leads: {},
@@ -612,6 +677,7 @@ export function useDjiStore() {
   // Finalize / Reopen Day
   const toggleFinalizeDay = useCallback(
     (dayOffset: number) => {
+      recordMutation();
       setLocalData((prev) => {
         const nextFinal = { ...prev.final };
         if (nextFinal[dayOffset]) {
@@ -641,6 +707,7 @@ export function useDjiStore() {
   // Update Daily Goal
   const updateDailyGoal = useCallback(
     (goal: number) => {
+      recordMutation();
       setLocalData((prev) => {
         const updated = { ...prev, goal };
         saveToStorage(updated);
@@ -653,6 +720,7 @@ export function useDjiStore() {
   // Update Promoter Target
   const updatePromoterTarget = useCallback(
     (staffIndex: number, target: number) => {
+      recordMutation();
       setLocalData((prev) => {
         const updated = {
           ...prev,
@@ -671,6 +739,7 @@ export function useDjiStore() {
   // Update Single Main Push Target
   const updateMainPushTarget = useCallback(
     (modelName: string, target: number) => {
+      recordMutation();
       setLocalData((prev) => {
         const updated = {
           ...prev,
@@ -689,6 +758,7 @@ export function useDjiStore() {
   // Delete target series completely
   const deleteMainPushTarget = useCallback(
     (modelName: string) => {
+      recordMutation();
       setLocalData((prev) => {
         const nextTargets = { ...(prev.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS) };
         delete nextTargets[modelName];
@@ -709,6 +779,7 @@ export function useDjiStore() {
   // Update selected variants for a series
   const updateSeriesVariants = useCallback(
     (seriesName: string, selectedVariants: string[]) => {
+      recordMutation();
       setLocalData((prev) => {
         const updated = {
           ...prev,
@@ -727,6 +798,7 @@ export function useDjiStore() {
   // Update All Main Push Targets and Variants at once
   const updateAllMainPushTargets = useCallback(
     (newTargets: Record<string, number>, newVariants?: Record<string, string[]>) => {
+      recordMutation();
       setLocalData((prev) => {
         const updated = {
           ...prev,
@@ -744,7 +816,8 @@ export function useDjiStore() {
 
   // Reset Main Push Targets to Defaults
   const resetMainPushTargets = useCallback(() => {
-    setLocalData((prev) => {
+    recordMutation();
+      setLocalData((prev) => {
       const updated = {
         ...prev,
         mainPushTargets: DEFAULT_MAIN_PUSH_TARGETS,
@@ -758,6 +831,7 @@ export function useDjiStore() {
   // Toggle routine task
   const toggleTask = useCallback(
     (taskIndex: number, dateKey: string = new Date().toDateString()) => {
+      recordMutation();
       setLocalData((prev) => {
         const dayTasks = [...(prev.tasks[dateKey] || Array(ROUTINE_TASKS.length).fill(false))];
         dayTasks[taskIndex] = !dayTasks[taskIndex];
@@ -861,6 +935,7 @@ export function useDjiStore() {
   // Inventory Management: Append new incoming units
   const importInventoryAppend = useCallback(
     (newUnits: UnitTuple[]) => {
+      recordMutation();
       setLocalData((prev) => {
         const currentList = (prev.hasCustomInventory || prev.inventoryUnits !== undefined)
           ? (prev.inventoryUnits || [])
@@ -884,6 +959,7 @@ export function useDjiStore() {
   // Inventory Management: Override / replace all active units
   const importInventoryOverride = useCallback(
     (allUnits: UnitTuple[]) => {
+      recordMutation();
       setLocalData((prev) => {
         const updated: LocalStorageState = {
           ...prev,
@@ -900,6 +976,7 @@ export function useDjiStore() {
   // Add a single unit to inventory
   const addInventoryUnit = useCallback(
     (unit: UnitTuple) => {
+      recordMutation();
       setLocalData((prev) => {
         const currentList = (prev.hasCustomInventory || prev.inventoryUnits !== undefined)
           ? (prev.inventoryUnits || [])
@@ -924,6 +1001,7 @@ export function useDjiStore() {
   // Delete a unit from inventory by Serial Number
   const deleteInventoryUnit = useCallback(
     (serialNumber: string) => {
+      recordMutation();
       setLocalData((prev) => {
         const currentList = (prev.hasCustomInventory || prev.inventoryUnits !== undefined)
           ? (prev.inventoryUnits || [])
@@ -944,7 +1022,8 @@ export function useDjiStore() {
 
   // Reset inventory back to master baseline
   const resetInventoryToMaster = useCallback(() => {
-    setLocalData((prev) => {
+    recordMutation();
+      setLocalData((prev) => {
       const next: LocalStorageState = { ...prev };
       delete next.inventoryUnits;
       next.hasCustomInventory = false;
@@ -1100,6 +1179,8 @@ export function useDjiStore() {
     deleteAllInventory,
     isCloudLoaded,
     cloudSyncStatus,
+    syncNow,
+    syncFeedback,
     addSale,
     addSalesBulk,
     overrideSales,

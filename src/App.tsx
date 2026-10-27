@@ -43,6 +43,8 @@ export default function App() {
       <Header
         todayOffset={store.todayDayOffset}
         cloudSyncStatus={store.cloudSyncStatus}
+        onSyncNow={store.syncNow}
+        syncFeedback={store.syncFeedback}
         pulseMetrics={store.pulseMetrics}
         onUpdateDailyGoal={store.updateDailyGoal}
         onExport={store.exportDataJSON}
