@@ -419,6 +419,7 @@ export interface MainPushCategoryBreakdown {
   storeRemaining: number;
   storePct: number;
   targetPerPromoter: number;
+  personDivider: number;
   promoters: PromoterModelTarget[];
   variants: VariantBreakdown[];
 }
@@ -782,7 +783,8 @@ export function calculateMainPushBreakdown(
   monthNum?: number,
   customTargets?: Record<string, number>,
   customVariants?: Record<string, string[]>,
-  yearNum?: number
+  yearNum?: number,
+  customDividers?: Record<string, number>
 ): {
   categories: MainPushCategoryBreakdown[];
   totalStoreTarget: number;
@@ -825,11 +827,12 @@ export function calculateMainPushBreakdown(
           'MINI 5 PRO SERIES': 9,
         };
 
-  const promoterCount = Math.max(staffList.length, 1);
+  const defaultPromoterCount = Math.max(staffList.length, 1);
 
   const categories: MainPushCategoryBreakdown[] = Object.entries(targetMap).map(
     ([name, storeTarget]) => {
-      const targetPerPromoter = Math.round(storeTarget / promoterCount);
+      const personDivider = Math.max(1, (customDividers && customDividers[name]) ? customDividers[name] : defaultPromoterCount);
+      const targetPerPromoter = Math.round(storeTarget / personDivider);
       const promoters: PromoterModelTarget[] = staffList.map((stName, idx) => ({
         staffIndex: idx,
         name: stName,
@@ -894,6 +897,7 @@ export function calculateMainPushBreakdown(
         storeRemaining: storeTarget,
         storePct: 0,
         targetPerPromoter,
+        personDivider,
         promoters,
         variants,
       };
@@ -1025,7 +1029,8 @@ export function calculatePromoterMonthPerformance(
   monthNum: number = 9,
   currentDayOffset: number = 83,
   customTargets?: Record<string, number>,
-  customVariants?: Record<string, string[]>
+  customVariants?: Record<string, string[]>,
+  customDividers?: Record<string, number>
 ): PromoterMonthlyPerformance[] {
   const octSales = sales.filter((s) => dayOffsetToDate(s[0]).getMonth() === monthNum);
 
@@ -1035,7 +1040,7 @@ export function calculatePromoterMonthPerformance(
   const daysRemainingInMonth = Math.max(1, 31 - currentDayOfMonth);
 
   // Get Main Push units per promoter
-  const pushData = calculateMainPushBreakdown(sales, staffList, monthNum, customTargets, customVariants);
+  const pushData = calculateMainPushBreakdown(sales, staffList, monthNum, customTargets, customVariants, undefined, customDividers);
 
   return staffList.map((name, i) => {
     const quotaTarget = promoterMonthlyTargets[i] ?? 2400000;

@@ -78,6 +78,7 @@ export default function App() {
             promoterMonthlyTargets={store.promoterMonthlyTargets}
             mainPushTargets={store.mainPushTargets}
             mainPushVariants={store.mainPushVariants}
+            mainPushDividers={store.mainPushDividers}
             onUpdateMainPushTargets={store.updateAllMainPushTargets}
             onResetMainPushTargets={store.resetMainPushTargets}
             onDeleteMainPushTarget={store.deleteMainPushTarget}

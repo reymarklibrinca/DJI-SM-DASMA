@@ -37,6 +37,7 @@ const defaultLocalState: LocalStorageState = {
   pm: { 0: 2400000, 1: 2400000, 2: 2400000 }, // Christian, Donna, Jobert
   mainPushTargets: DEFAULT_MAIN_PUSH_TARGETS,
   mainPushVariants: DEFAULT_MAIN_PUSH_VARIANTS,
+  mainPushDividers: { 'OSMO ACTION 6 SERIES': 3, 'OSMO POCKET 4 SERIES': 3, 'NEO 2 SERIES': 3, 'LITO X1 SERIES': 3, 'MINI 5 PRO SERIES': 3 },
 };
 
 export type ActiveTab = 'd' | 'b' | 't' | 'y' | 'r' | 's' | 'p' | 'l' | 'i' | 'c' | 'k' | 'inv';
@@ -57,6 +58,7 @@ export function useDjiStore() {
           pm: parsed.pm || defaultLocalState.pm,
           mainPushTargets: parsed.mainPushTargets !== undefined ? parsed.mainPushTargets : DEFAULT_MAIN_PUSH_TARGETS,
           mainPushVariants: parsed.mainPushVariants !== undefined ? parsed.mainPushVariants : DEFAULT_MAIN_PUSH_VARIANTS,
+          mainPushDividers: parsed.mainPushDividers || {},
           inventoryUnits: Array.isArray(parsed.inventoryUnits) ? parsed.inventoryUnits : undefined,
           hasCustomInventory: typeof parsed.hasCustomInventory === 'boolean' ? parsed.hasCustomInventory : false,
         };
@@ -78,10 +80,13 @@ export function useDjiStore() {
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastLocalEditTimeRef = useRef<number>(0);
+  const isLocalUserActionRef = useRef<boolean>(false);
   const isSavingRef = useRef<boolean>(false);
+  const lastSavedJsonRef = useRef<string>('');
 
   // Record a user mutation timestamp to protect against race conditions
   const recordMutation = useCallback(() => {
+    isLocalUserActionRef.current = true;
     lastLocalEditTimeRef.current = Date.now();
   }, []);
 
@@ -110,8 +115,9 @@ export function useDjiStore() {
                 preferLocal: true,
               });
               saveToStorage(reconciled);
+              lastSavedJsonRef.current = JSON.stringify(reconciled);
 
-              // If local state had sales or edits that were not yet in Firestore, upload reconciled truth immediately!
+              // If local state had sales or edits that were not yet in Firestore, upload reconciled truth once!
               if (hadAdditionsFromLocal) {
                 saveCloudData(reconciled).catch((e) => console.warn('Cloud sync push error:', e));
               }
@@ -119,8 +125,10 @@ export function useDjiStore() {
             });
           } else {
             // Document does not exist yet: push current local state to Firestore so nothing is lost
+            lastSavedJsonRef.current = JSON.stringify(localData);
             saveCloudData(localData).catch((e) => console.warn('Cloud sync init error:', e));
           }
+          isLocalUserActionRef.current = false;
           setCloudSyncStatus('connected');
         }
       } catch (err) {
@@ -138,29 +146,34 @@ export function useDjiStore() {
       if (!incoming || !isMounted) return;
       if (isMounted) setCloudSyncStatus('connected');
 
-      // Check if user recently edited within the last 3500ms
+      // Check if user recently edited within the last 4000ms, or has unsaved edits pending
       const timeSinceLastEdit = Date.now() - lastLocalEditTimeRef.current;
-      const hasRecentLocalMutation = timeSinceLastEdit < 3500;
+      const hasRecentLocalMutation = timeSinceLastEdit < 4000 || isLocalUserActionRef.current || isSavingRef.current;
 
-      recordMutation();
+      // CRITICAL: If the user is currently typing, editing targets, or logging sales,
+      // DO NOT let the background snapshot interfere with their active state!
+      if (hasRecentLocalMutation) {
+        return;
+      }
+
       setLocalData((prev) => {
         // Reconcile non-destructively: local inputs are never wiped out
-        const { reconciled, hadAdditionsFromLocal } = reconcileStoreState(
+        const { reconciled } = reconcileStoreState(
           prev,
           incoming,
-          { preferLocal: hasRecentLocalMutation }
+          { preferLocal: false }
         );
 
+        // If identical, return prev to prevent re-render of components and modals!
         if (JSON.stringify(prev) === JSON.stringify(reconciled)) {
           return prev;
         }
 
         saveToStorage(reconciled);
+        lastSavedJsonRef.current = JSON.stringify(reconciled);
 
-        // If local had inputs that Firestore lacked (race condition), push reconciled state
-        if (hadAdditionsFromLocal && !hasRecentLocalMutation) {
-          saveCloudData(reconciled).catch((e) => console.warn('Cloud sync reconciliation push error:', e));
-        }
+        // Inbound snapshot from cloud: do NOT flag as local user action!
+        isLocalUserActionRef.current = false;
 
         return reconciled;
       });
@@ -172,9 +185,20 @@ export function useDjiStore() {
     };
   }, [saveToStorage]);
 
-  // 2. Debounced Cloud Save to Firebase
+  // 2. Debounced Cloud Save to Firebase - ONLY fires for real user actions!
   useEffect(() => {
     if (!isCloudLoaded) return;
+
+    // CRITICAL: If this update came from an incoming Firebase snapshot, do NOT loop back and save!
+    if (!isLocalUserActionRef.current) {
+      return;
+    }
+
+    const currentJson = JSON.stringify(localData);
+    if (currentJson === lastSavedJsonRef.current) {
+      isLocalUserActionRef.current = false;
+      return;
+    }
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -183,9 +207,13 @@ export function useDjiStore() {
     setCloudSyncStatus('syncing');
 
     saveTimeoutRef.current = setTimeout(() => {
+      isLocalUserActionRef.current = false;
       isSavingRef.current = true;
       saveCloudData(localData)
         .then((ok) => {
+          if (ok) {
+            lastSavedJsonRef.current = JSON.stringify(localData);
+          }
           setCloudSyncStatus(ok ? 'connected' : 'offline');
         })
         .catch((err) => {
@@ -195,7 +223,7 @@ export function useDjiStore() {
         .finally(() => {
           isSavingRef.current = false;
         });
-    }, 1000);
+    }, 1200);
 
     return () => {
       if (saveTimeoutRef.current) {
@@ -218,6 +246,10 @@ export function useDjiStore() {
         saveToStorage(reconciled);
       }
       const ok = await saveCloudData(nextState);
+      if (ok) {
+        lastSavedJsonRef.current = JSON.stringify(nextState);
+      }
+      isLocalUserActionRef.current = false;
       setCloudSyncStatus(ok ? 'connected' : 'offline');
       const msg = ok
         ? 'Synced with Firebase! All sales, leads, tasks, and targets preserved.'
@@ -795,9 +827,13 @@ export function useDjiStore() {
     [saveToStorage]
   );
 
-  // Update All Main Push Targets and Variants at once
+  // Update All Main Push Targets, Variants, and Person Dividers at once
   const updateAllMainPushTargets = useCallback(
-    (newTargets: Record<string, number>, newVariants?: Record<string, string[]>) => {
+    (
+      newTargets: Record<string, number>,
+      newVariants?: Record<string, string[]>,
+      newDividers?: Record<string, number>
+    ) => {
       recordMutation();
       setLocalData((prev) => {
         const updated = {
@@ -806,6 +842,27 @@ export function useDjiStore() {
             ...newTargets,
           },
           ...(newVariants ? { mainPushVariants: { ...newVariants } } : {}),
+          ...(newDividers !== undefined ? { mainPushDividers: { ...newDividers } } : {}),
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
+  // Update how many persons divide a specific model target
+  const updateMainPushDivider = useCallback(
+    (modelName: string, divider: number) => {
+      recordMutation();
+      setLocalData((prev) => {
+        const currentDividers = prev.mainPushDividers || {};
+        const updated = {
+          ...prev,
+          mainPushDividers: {
+            ...currentDividers,
+            [modelName]: Math.max(1, Math.round(divider)),
+          },
         };
         saveToStorage(updated);
         return updated;
@@ -1157,6 +1214,8 @@ export function useDjiStore() {
     promoterMonthlyTargets: (localData.pm || defaultLocalState.pm || { 0: 2400000, 1: 2400000, 2: 2400000 }) as Record<number, number>,
     mainPushTargets: localData.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS,
     mainPushVariants: localData.mainPushVariants || DEFAULT_MAIN_PUSH_VARIANTS,
+    mainPushDividers: localData.mainPushDividers || {},
+    updateMainPushDivider,
     todayDayOffset,
     endOffset,
     activeTab,

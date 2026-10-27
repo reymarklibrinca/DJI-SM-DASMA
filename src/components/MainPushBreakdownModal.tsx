@@ -45,7 +45,8 @@ interface MainPushBreakdownModalProps {
   endOffset: number;
   mainPushTargets?: Record<string, number>;
   mainPushVariants?: Record<string, string[]>;
-  onUpdateMainPushTargets?: (newTargets: Record<string, number>, newVariants?: Record<string, string[]>) => void;
+  mainPushDividers?: Record<string, number>;
+  onUpdateMainPushTargets?: (newTargets: Record<string, number>, newVariants?: Record<string, string[]>, newDividers?: Record<string, number>) => void;
   onResetMainPushTargets?: () => void;
   onDeleteTarget?: (modelName: string) => void;
 }
@@ -59,6 +60,7 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
   endOffset,
   mainPushTargets,
   mainPushVariants,
+  mainPushDividers,
   onUpdateMainPushTargets,
   onResetMainPushTargets,
   onDeleteTarget,
@@ -77,12 +79,12 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
   const activeMonthName = getMonthName(getMonthKey(endOffset));
 
   const pushData = useMemo(() => {
-    return calculateMainPushBreakdown(sales, staffList, activeMonthNum, mainPushTargets, mainPushVariants, activeYearNum);
-  }, [sales, staffList, activeMonthNum, activeYearNum, mainPushTargets, mainPushVariants]);
+    return calculateMainPushBreakdown(sales, staffList, activeMonthNum, mainPushTargets, mainPushVariants, activeYearNum, mainPushDividers);
+  }, [sales, staffList, activeMonthNum, activeYearNum, mainPushTargets, mainPushVariants, mainPushDividers]);
 
   const promoterPerf = useMemo(() => {
-    return calculatePromoterMonthPerformance(sales, staffList, promoterMonthlyTargets, activeMonthNum, endOffset, mainPushTargets, mainPushVariants);
-  }, [sales, staffList, promoterMonthlyTargets, activeMonthNum, endOffset, mainPushTargets, mainPushVariants, activeYearNum]);
+    return calculatePromoterMonthPerformance(sales, staffList, promoterMonthlyTargets, activeMonthNum, endOffset, mainPushTargets, mainPushVariants, mainPushDividers);
+  }, [sales, staffList, promoterMonthlyTargets, activeMonthNum, endOffset, mainPushTargets, mainPushVariants, activeYearNum, mainPushDividers]);
 
   const soldByModelMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -381,7 +383,12 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
                         return (
                           <tr key={cat.name} className="hover:bg-slate-50">
                             <td className="py-3 px-3">
-                              <div className="font-bold text-slate-900 text-sm">{cat.name}</div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-slate-900 text-sm">{cat.name}</span>
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                  ÷{cat.personDivider} persons ({cat.targetPerPromoter} ea)
+                                </span>
+                              </div>
                               <div className="text-[11px] text-slate-500 font-medium">
                                 {cat.storePct.toFixed(0)}% store target met
                               </div>

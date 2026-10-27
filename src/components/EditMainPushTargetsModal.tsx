@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Target,
+  Users,
   Plus,
   Trash2,
   RotateCcw,
@@ -34,9 +35,11 @@ interface EditMainPushTargetsModalProps {
   onClose: () => void;
   currentTargets: Record<string, number>;
   currentVariants?: Record<string, string[]>;
+  currentDividers?: Record<string, number>;
   onSaveTargets: (
     newTargets: Record<string, number>,
-    newVariants?: Record<string, string[]>
+    newVariants?: Record<string, string[]>,
+    newDividers?: Record<string, number>
   ) => void;
   onResetTargets?: () => void;
   onDeleteTarget?: (modelName: string) => void;
@@ -57,6 +60,7 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
   onClose,
   currentTargets,
   currentVariants = {},
+  currentDividers = {},
   onSaveTargets,
   onResetTargets,
   onDeleteTarget,
@@ -66,6 +70,9 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
 }) => {
   const [draftTargets, setDraftTargets] = useState<Record<string, number>>({});
   const [draftVariants, setDraftVariants] = useState<Record<string, string[]>>({});
+  const [draftDividers, setDraftDividers] = useState<Record<string, number>>({});
+  const [globalDivider, setGlobalDivider] = useState<number>(3);
+  const [newModelDivider, setNewModelDivider] = useState<number>(3);
   const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
   const [openCatalogs, setOpenCatalogs] = useState<Record<string, boolean>>({});
   const [openSeriesMap, setOpenSeriesMap] = useState<Record<string, boolean>>({});
@@ -127,10 +134,15 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
     });
   }, [stockBySeries]);
 
-  // Initialize draft state whenever modal opens
+    const wasOpenRef = useRef(false);
+
+  // Initialize draft state ONLY when the modal transitions from closed to open.
+  // This guarantees that background updates, re-renders, or syncs NEVER wipe out
+  // whatever targets or subvariants the user is actively typing!
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpenRef.current) {
       setDraftTargets({ ...currentTargets });
+      setDraftDividers({ ...currentDividers });
       setErrorMessage(null);
       setSearchQueries({});
       setNewSubvariantInputs({});
@@ -179,8 +191,10 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
       setSelectedMasterSeries('');
       setCustomSeriesInput('');
       setNewModelTarget(10);
+      setNewModelDivider(3);
     }
-  }, [isOpen, currentTargets, currentVariants, allSeriesNames]);
+    wasOpenRef.current = isOpen;
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -189,6 +203,33 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
       ...prev,
       [groupName]: Math.max(0, value),
     }));
+  };
+
+
+  const handleDividerChange = (groupName: string, value: number) => {
+    setDraftDividers((prev) => ({
+      ...prev,
+      [groupName]: Math.max(1, Math.round(value)),
+    }));
+  };
+
+  const handleStepDivider = (groupName: string, delta: number) => {
+    setDraftDividers((prev) => {
+      const current = prev[groupName] ?? 3;
+      return {
+        ...prev,
+        [groupName]: Math.max(1, current + delta),
+      };
+    });
+  };
+
+  const handleApplyGlobalDivider = (dividerVal: number) => {
+    const val = Math.max(1, Math.round(dividerVal));
+    const next: Record<string, number> = {};
+    Object.keys(draftTargets).forEach((k) => {
+      next[k] = val;
+    });
+    setDraftDividers(next);
   };
 
   const handleStep = (groupName: string, delta: number) => {
@@ -376,7 +417,7 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
 
   // Save changes
   const handleSave = () => {
-    onSaveTargets(draftTargets, draftVariants);
+    onSaveTargets(draftTargets, draftVariants, draftDividers);
     onClose();
   };
 
@@ -630,35 +671,87 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
                       </div>
                     </div>
 
-                    {/* Step & Target Inputs + Delete Button */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-300">
+                    {/* Step & Target Inputs + Custom Person Divider + Delete Button */}
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
+                      {/* Target Stepper */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          Target:
+                        </span>
+                        <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-300 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={() => handleStep(groupName, -1)}
+                            className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer"
+                            title="Decrease quota"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={0}
+                            value={targetVal}
+                            onChange={(e) =>
+                              handleTargetChange(groupName, Number(e.target.value) || 0)
+                            }
+                            className="w-12 px-1 py-0.5 bg-transparent text-center font-black text-slate-900 text-xs focus:outline-hidden"
+                            title="Monthly Target Quota"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleStep(groupName, 1)}
+                            className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer"
+                            title="Increase quota"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Custom Persons Divider */}
+                      <div className="flex items-center gap-1 bg-blue-50/80 px-2 py-0.5 rounded-lg border border-blue-200">
+                        <Users className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="text-[11px] font-bold text-blue-800">
+                          Divide by:
+                        </span>
                         <button
                           type="button"
-                          onClick={() => handleStep(groupName, -1)}
-                          className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer"
-                          title="Decrease quota"
+                          onClick={() => handleStepDivider(groupName, -1)}
+                          className="w-5 h-5 rounded bg-white hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer border border-blue-200"
+                          title="Decrease number of persons"
                         >
                           -
                         </button>
                         <input
                           type="number"
-                          min={0}
-                          value={targetVal}
+                          min={1}
+                          value={draftDividers[groupName] ?? 3}
                           onChange={(e) =>
-                            handleTargetChange(groupName, Number(e.target.value) || 0)
+                            handleDividerChange(groupName, Number(e.target.value) || 1)
                           }
-                          className="w-12 px-1 py-0.5 bg-transparent text-center font-black text-slate-900 text-xs focus:outline-hidden"
-                          title="Monthly Target Quota"
+                          className="w-8 px-0.5 py-0.5 bg-white text-center font-black text-blue-950 text-xs rounded border border-blue-200 focus:outline-hidden"
+                          title="Number of persons dividing this target"
                         />
                         <button
                           type="button"
-                          onClick={() => handleStep(groupName, 1)}
-                          className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer"
-                          title="Increase quota"
+                          onClick={() => handleStepDivider(groupName, 1)}
+                          className="w-5 h-5 rounded bg-white hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer border border-blue-200"
+                          title="Increase number of persons"
                         >
                           +
                         </button>
+                        <span className="text-[11px] font-semibold text-blue-700">
+                          persons
+                        </span>
+                      </div>
+
+                      {/* Dynamic Result Pill */}
+                      <div className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-1">
+                        <span>=</span>
+                        <span className="font-black text-emerald-900">
+                          {Math.round(targetVal / Math.max(1, draftDividers[groupName] ?? 3))}
+                        </span>
+                        <span className="text-[10px] font-semibold text-emerald-700">/ person</span>
                       </div>
 
                       <button

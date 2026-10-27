@@ -351,7 +351,8 @@ interface DashboardTabProps {
   promoterMonthlyTargets?: Record<number, number>;
   mainPushTargets?: Record<string, number>;
   mainPushVariants?: Record<string, string[]>;
-  onUpdateMainPushTargets?: (newTargets: Record<string, number>, newVariants?: Record<string, string[]>) => void;
+  mainPushDividers?: Record<string, number>;
+  onUpdateMainPushTargets?: (newTargets: Record<string, number>, newVariants?: Record<string, string[]>, newDividers?: Record<string, number>) => void;
   onResetMainPushTargets?: () => void;
   onDeleteMainPushTarget?: (modelName: string) => void;
 }
@@ -366,6 +367,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   promoterMonthlyTargets = { 0: 2400000, 1: 2400000, 2: 2400000 },
   mainPushTargets,
   mainPushVariants,
+  mainPushDividers,
   onUpdateMainPushTargets,
   onResetMainPushTargets,
   onDeleteMainPushTarget,
@@ -635,8 +637,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const currentMonthNum = dayOffsetToDate(endOffset).getMonth();
   const currentYear = dayOffsetToDate(endOffset).getFullYear();
   const pushData = useMemo(() => {
-    return calculateMainPushBreakdown(sales, staffList, currentMonthNum, mainPushTargets, mainPushVariants, currentYear);
-  }, [sales, staffList, currentMonthNum, currentYear, mainPushTargets, mainPushVariants]);
+    return calculateMainPushBreakdown(sales, staffList, currentMonthNum, mainPushTargets, mainPushVariants, currentYear, mainPushDividers);
+  }, [sales, staffList, currentMonthNum, currentYear, mainPushTargets, mainPushVariants, mainPushDividers]);
 
   const soldByModelMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -1066,6 +1068,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     <div className="flex justify-between items-center text-xs">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900 text-sm">{cat.name}</span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                          ÷{cat.personDivider} persons ({cat.targetPerPromoter} ea)
+                        </span>
                         {cat.storeRemaining === 0 ? (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                             Target Hit!
@@ -1880,6 +1885,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         endOffset={endOffset}
         mainPushTargets={mainPushTargets}
         mainPushVariants={mainPushVariants}
+        mainPushDividers={mainPushDividers}
         onUpdateMainPushTargets={onUpdateMainPushTargets}
         onResetMainPushTargets={onResetMainPushTargets}
         onDeleteTarget={onDeleteMainPushTarget}
@@ -1892,6 +1898,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           onClose={() => setIsEditTargetsOpen(false)}
           currentTargets={mainPushTargets || {}}
           currentVariants={mainPushVariants || {}}
+          currentDividers={mainPushDividers || {}}
           onSaveTargets={onUpdateMainPushTargets}
           onResetTargets={onResetMainPushTargets}
           onDeleteTarget={onDeleteMainPushTarget}

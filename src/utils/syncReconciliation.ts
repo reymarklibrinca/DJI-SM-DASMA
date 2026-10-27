@@ -126,6 +126,26 @@ export function reconcileLeads(
  * Reconciles Main Push Targets:
  * Preserves user custom targets while incorporating any remote updates.
  */
+/**
+ * Reconciles Main Push Dividers (how many persons divide the target):
+ */
+export function reconcileMainPushDividers(
+  localDividers: Record<string, number> = {},
+  remoteDividers: Record<string, number> = {},
+  preferLocal: boolean = true
+): Record<string, number> {
+  if (preferLocal) {
+    return {
+      ...(remoteDividers || {}),
+      ...(localDividers || {}),
+    };
+  }
+  return {
+    ...(localDividers || {}),
+    ...(remoteDividers || {}),
+  };
+}
+
 export function reconcileMainPushTargets(
   localTargets: Record<string, number> = {},
   remoteTargets: Record<string, number> = {},
@@ -261,6 +281,13 @@ export function reconcileStoreState(
     preferLocal
   );
 
+  // 5b. Main Push Dividers Reconcile
+  const mergedDividers = reconcileMainPushDividers(
+    local.mainPushDividers,
+    remote.mainPushDividers,
+    preferLocal
+  );
+
   // 6. Main Push Variants Reconcile (preserves subvariants)
   const mergedVariants = reconcileMainPushVariants(
     local.mainPushVariants,
@@ -297,6 +324,7 @@ export function reconcileStoreState(
     pm,
     mainPushTargets: mergedTargets,
     mainPushVariants: mergedVariants,
+    mainPushDividers: mergedDividers,
     inventoryUnits: mergedInventoryUnits,
     hasCustomInventory: hasCustom,
   };
