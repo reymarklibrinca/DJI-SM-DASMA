@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "StoreState": {
+      "title": "StoreState",
+      "description": "Global state for DJI SM Dasmariñas store including sales, inventory, and configurations",
+      "type": "object",
+      "properties": {
+        "sales": {
+          "type": "array",
+          "description": "Array of local sales transaction tuples"
+        },
+        "tasks": {
+          "type": "object",
+          "description": "Daily checklist tasks completion map"
+        },
+        "leads": {
+          "type": "object",
+          "description": "Daily foot-traffic leads per promoter"
+        },
+        "final": {
+          "type": "object",
+          "description": "Daily finalized records map"
+        },
+        "goal": {
+          "type": "number",
+          "description": "Daily sales target in PHP"
+        },
+        "pm": {
+          "type": "object",
+          "description": "Promoter monthly target map"
+        },
+        "mainPushTargets": {
+          "type": "object",
+          "description": "Focus product series unit targets"
+        },
+        "mainPushVariants": {
+          "type": "object",
+          "description": "Focus product series variant selections"
+        },
+        "inventoryUnits": {
+          "type": "array",
+          "description": "Serialized inventory units list"
+        },
+        "hasCustomInventory": {
+          "type": "boolean",
+          "description": "Flag indicating if user has customized or wiped inventory"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last ISO timestamp when the state was updated"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/store_state/{storeId}": {
+      "schema": "StoreState",
+      "description": "Persistent store state documents for each store location"
+    }
+  }
+}

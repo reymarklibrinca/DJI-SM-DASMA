@@ -284,9 +284,13 @@ export function calculateStockMetrics(
   let totalUnitsInStock = 0;
   let totalSrpValue = 0;
 
-  const effectiveUnits = customUnits && customUnits.length > 0 ? customUnits : DJI_DATA.units;
+  const effectiveUnits = customUnits !== undefined ? customUnits : DJI_DATA.units;
 
-  if (customUnits && customUnits.length > 0) {
+  if (customUnits !== undefined) {
+    // Initialize standard series with 0 so breakdown shows categories even when stock is 0 or empty
+    DJI_DATA.ser.forEach((s) => {
+      seriesMap[s] = { in: 0, sold: 0 };
+    });
     // Tally stock directly from effectiveUnits
     effectiveUnits.forEach((u) => {
       const seriesName = u[3] || 'GENERAL';

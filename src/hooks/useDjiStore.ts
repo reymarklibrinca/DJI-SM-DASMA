@@ -57,6 +57,7 @@ export function useDjiStore() {
           mainPushTargets: parsed.mainPushTargets !== undefined ? parsed.mainPushTargets : DEFAULT_MAIN_PUSH_TARGETS,
           mainPushVariants: parsed.mainPushVariants !== undefined ? parsed.mainPushVariants : DEFAULT_MAIN_PUSH_VARIANTS,
           inventoryUnits: Array.isArray(parsed.inventoryUnits) ? parsed.inventoryUnits : undefined,
+          hasCustomInventory: typeof parsed.hasCustomInventory === 'boolean' ? parsed.hasCustomInventory : false,
         };
       }
     } catch (e) {
@@ -100,7 +101,9 @@ export function useDjiStore() {
             goal: typeof initial.goal === 'number' ? initial.goal : defaultLocalState.goal,
             pm: initial.pm || defaultLocalState.pm,
             mainPushTargets: initial.mainPushTargets || defaultLocalState.mainPushTargets,
+            mainPushVariants: initial.mainPushVariants || defaultLocalState.mainPushVariants,
             inventoryUnits: Array.isArray(initial.inventoryUnits) ? initial.inventoryUnits : undefined,
+            hasCustomInventory: Boolean(initial.hasCustomInventory),
           };
           setLocalData(validatedState);
           saveToStorage(validatedState);
@@ -134,6 +137,7 @@ export function useDjiStore() {
           mainPushTargets: incoming.mainPushTargets !== undefined ? incoming.mainPushTargets : (prev.mainPushTargets || defaultLocalState.mainPushTargets),
           mainPushVariants: incoming.mainPushVariants !== undefined ? incoming.mainPushVariants : (prev.mainPushVariants || defaultLocalState.mainPushVariants),
           inventoryUnits: Array.isArray(incoming.inventoryUnits) ? incoming.inventoryUnits : prev.inventoryUnits,
+          hasCustomInventory: incoming.hasCustomInventory !== undefined ? Boolean(incoming.hasCustomInventory) : prev.hasCustomInventory,
         };
         saveToStorage(updated);
         return updated;
@@ -199,12 +203,13 @@ export function useDjiStore() {
     return getPeriodRange(endOffset, daysCount, selectedMonth);
   }, [endOffset, daysCount, selectedMonth]);
 
-  // Active inventory registry (custom imported inventory or master DJI_DATA.units)
+  // Active inventory registry (custom imported inventory, or master DJI_DATA.units if never customized)
   const activeUnits = useMemo<UnitTuple[]>(() => {
-    return localData.inventoryUnits && localData.inventoryUnits.length > 0
-      ? localData.inventoryUnits
-      : DJI_DATA.units;
-  }, [localData.inventoryUnits]);
+    if (localData.hasCustomInventory || localData.inventoryUnits !== undefined) {
+      return localData.inventoryUnits || [];
+    }
+    return DJI_DATA.units;
+  }, [localData.inventoryUnits, localData.hasCustomInventory]);
 
   // Fast Serial Number Lookup Map
   const unitsMap = useMemo(() => {
@@ -830,20 +835,37 @@ export function useDjiStore() {
     }
   }, [saveToStorage]);
 
+  // Wipe all inventory units completely (0 inventory)
+  const deleteAllInventory = useCallback(async () => {
+    const updated: LocalStorageState = {
+      ...localData,
+      inventoryUnits: [],
+      hasCustomInventory: true,
+    };
+    setLocalData(updated);
+    saveToStorage(updated);
+    try {
+      await saveCloudData(updated);
+    } catch (e) {
+      console.error('Failed to sync inventory deletion to cloud:', e);
+    }
+  }, [localData, saveToStorage]);
+
   // Inventory Management: Append new incoming units
   const importInventoryAppend = useCallback(
     (newUnits: UnitTuple[]) => {
       setLocalData((prev) => {
-        const currentList = prev.inventoryUnits && prev.inventoryUnits.length > 0
-          ? prev.inventoryUnits
+        const currentList = (prev.hasCustomInventory || prev.inventoryUnits !== undefined)
+          ? (prev.inventoryUnits || [])
           : DJI_DATA.units;
         const map = new Map<string, UnitTuple>();
         currentList.forEach((u) => map.set(u[0].toUpperCase(), u));
         newUnits.forEach((u) => map.set(u[0].toUpperCase(), u));
         const merged = Array.from(map.values());
-        const updated = {
+        const updated: LocalStorageState = {
           ...prev,
           inventoryUnits: merged,
+          hasCustomInventory: true,
         };
         saveToStorage(updated);
         return updated;
@@ -856,9 +878,10 @@ export function useDjiStore() {
   const importInventoryOverride = useCallback(
     (allUnits: UnitTuple[]) => {
       setLocalData((prev) => {
-        const updated = {
+        const updated: LocalStorageState = {
           ...prev,
           inventoryUnits: allUnits,
+          hasCustomInventory: true,
         };
         saveToStorage(updated);
         return updated;
@@ -871,17 +894,18 @@ export function useDjiStore() {
   const addInventoryUnit = useCallback(
     (unit: UnitTuple) => {
       setLocalData((prev) => {
-        const currentList = prev.inventoryUnits && prev.inventoryUnits.length > 0
-          ? prev.inventoryUnits
+        const currentList = (prev.hasCustomInventory || prev.inventoryUnits !== undefined)
+          ? (prev.inventoryUnits || [])
           : DJI_DATA.units;
         const snUpper = unit[0].toUpperCase();
         const exists = currentList.some((u) => u[0].toUpperCase() === snUpper);
         const nextList = exists
           ? currentList.map((u) => (u[0].toUpperCase() === snUpper ? unit : u))
           : [unit, ...currentList];
-        const updated = {
+        const updated: LocalStorageState = {
           ...prev,
           inventoryUnits: nextList,
+          hasCustomInventory: true,
         };
         saveToStorage(updated);
         return updated;
@@ -894,14 +918,15 @@ export function useDjiStore() {
   const deleteInventoryUnit = useCallback(
     (serialNumber: string) => {
       setLocalData((prev) => {
-        const currentList = prev.inventoryUnits && prev.inventoryUnits.length > 0
-          ? prev.inventoryUnits
+        const currentList = (prev.hasCustomInventory || prev.inventoryUnits !== undefined)
+          ? (prev.inventoryUnits || [])
           : DJI_DATA.units;
         const snUpper = serialNumber.trim().toUpperCase();
         const nextList = currentList.filter((u) => u[0].toUpperCase() !== snUpper);
-        const updated = {
+        const updated: LocalStorageState = {
           ...prev,
           inventoryUnits: nextList,
+          hasCustomInventory: true,
         };
         saveToStorage(updated);
         return updated;
@@ -913,8 +938,9 @@ export function useDjiStore() {
   // Reset inventory back to master baseline
   const resetInventoryToMaster = useCallback(() => {
     setLocalData((prev) => {
-      const next = { ...prev };
+      const next: LocalStorageState = { ...prev };
       delete next.inventoryUnits;
+      next.hasCustomInventory = false;
       saveToStorage(next);
       return next;
     });
@@ -1027,8 +1053,11 @@ export function useDjiStore() {
 
   // Stock calculations
   const stockMetrics = useMemo(() => {
-    return calculateStockMetrics(allSales, endOffset, localData.sales, activeUnits);
-  }, [allSales, endOffset, localData.sales, activeUnits]);
+    const customOrUndefined = (localData.hasCustomInventory || localData.inventoryUnits !== undefined)
+      ? activeUnits
+      : undefined;
+    return calculateStockMetrics(allSales, endOffset, localData.sales, customOrUndefined);
+  }, [allSales, endOffset, localData.sales, activeUnits, localData.hasCustomInventory, localData.inventoryUnits]);
 
   return {
     staff: DJI_DATA.staff,
@@ -1061,6 +1090,7 @@ export function useDjiStore() {
     addInventoryUnit,
     deleteInventoryUnit,
     resetInventoryToMaster,
+    deleteAllInventory,
     isCloudLoaded,
     cloudSyncStatus,
     addSale,

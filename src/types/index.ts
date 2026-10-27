@@ -58,6 +58,7 @@ export interface LocalStorageState {
   mainPushTargets?: Record<string, number>; // categoryName -> target units (e.g. 'Mini 5 Pro': 9)
   mainPushVariants?: Record<string, string[]>; // categoryName -> array of selected variant labels (e.g. 'OA Series': ['Action 4', 'Action 5', 'Action 6'])
   inventoryUnits?: UnitTuple[]; // Custom imported or edited serialized inventory
+  hasCustomInventory?: boolean; // When true, inventoryUnits (even if empty []) is authoritative and will not revert to initial seed
 }
 
 export interface VariantBreakdown {

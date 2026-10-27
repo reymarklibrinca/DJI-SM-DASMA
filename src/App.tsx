@@ -193,6 +193,7 @@ export default function App() {
             onAddUnit={store.addInventoryUnit}
             onDeleteUnit={store.deleteInventoryUnit}
             onResetToMaster={store.resetInventoryToMaster}
+            onDeleteAllInventory={store.deleteAllInventory}
           />
         )}
 

@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidStoreState(data) {
+      return data is map &&
+        (!('goal' in data) || data.goal is number) &&
+        (!('sales' in data) || data.sales is list) &&
+        (!('inventoryUnits' in data) || data.inventoryUnits is list);
+    }
+
+    // Main store state document
+    match /store_state/{storeId} {
+      allow get: if isValidId(storeId);
+      allow list: if false;
+      allow create, update: if isValidId(storeId) && isValidStoreState(incoming());
+      allow delete: if false;
+    }
+
+    // Connection validation document
+    match /test/{docId} {
+      allow read, write: if isValidId(docId);
+    }
+  }
+}

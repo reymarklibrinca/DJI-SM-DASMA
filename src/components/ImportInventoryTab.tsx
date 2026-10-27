@@ -33,6 +33,7 @@ interface ImportInventoryTabProps {
   onAddUnit: (unit: UnitTuple) => void;
   onDeleteUnit: (serialNumber: string) => void;
   onResetToMaster: () => void;
+  onDeleteAllInventory?: () => void;
 }
 
 interface ParsedInventoryRow {
@@ -56,6 +57,7 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
   onAddUnit,
   onDeleteUnit,
   onResetToMaster,
+  onDeleteAllInventory,
 }) => {
   // File upload state
   const [file, setFile] = useState<File | null>(null);
@@ -81,8 +83,9 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 25;
 
-  // Confirm reset modal
+  // Confirm reset and delete all modals
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+  const [isConfirmingDeleteAll, setIsConfirmingDeleteAll] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -936,25 +939,30 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {isConfirmingReset ? (
-              <div className="flex items-center gap-1.5 animate-in fade-in">
-                <span className="text-[11px] text-rose-700 font-bold">Reset back to master file?</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Delete All Inventory Button */}
+            {isConfirmingDeleteAll ? (
+              <div className="flex items-center gap-1.5 p-1 bg-rose-50 border border-rose-300 rounded-xl animate-in fade-in">
+                <span className="text-[11px] text-rose-800 font-bold px-1.5">Delete all {units.length} units?</span>
                 <button
                   type="button"
                   onClick={() => {
-                    onResetToMaster();
-                    setIsConfirmingReset(false);
-                    setFeedback({ type: 'info', message: 'Inventory reset to master stock baseline.' });
+                    if (onDeleteAllInventory) {
+                      onDeleteAllInventory();
+                    } else {
+                      onImportOverride([]);
+                    }
+                    setIsConfirmingDeleteAll(false);
+                    setFeedback({ type: 'info', message: 'All inventory data has been deleted (0 items in stock).' });
                   }}
-                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs"
+                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer"
                 >
-                  Yes, Reset
+                  Yes, Wipe All
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsConfirmingReset(false)}
-                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs"
+                  onClick={() => setIsConfirmingDeleteAll(false)}
+                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -962,8 +970,49 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
             ) : (
               <button
                 type="button"
-                onClick={() => setIsConfirmingReset(true)}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                onClick={() => {
+                  setIsConfirmingDeleteAll(true);
+                  setIsConfirmingReset(false);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition-all cursor-pointer shadow-2xs"
+                title="Wipe and clear all inventory records to 0 units"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete All Inventory</span>
+              </button>
+            )}
+
+            {/* Reset to Master Stock Button */}
+            {isConfirmingReset ? (
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 border border-slate-300 rounded-xl animate-in fade-in">
+                <span className="text-[11px] text-slate-700 font-bold px-1.5">Reset back to master baseline?</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onResetToMaster();
+                    setIsConfirmingReset(false);
+                    setFeedback({ type: 'info', message: 'Inventory reset to master stock baseline.' });
+                  }}
+                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer"
+                >
+                  Yes, Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingReset(false)}
+                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsConfirmingReset(true);
+                  setIsConfirmingDeleteAll(false);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
                 title="Reset active inventory back to original baseline (1,081 units)"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -1045,8 +1094,20 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
             <tbody className="divide-y divide-slate-100 font-medium">
               {paginatedRegistryUnits.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
-                    No units matching search criteria.
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                    {units.length === 0 ? (
+                      <div className="space-y-2">
+                        <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                          <Trash2 className="w-5 h-5" />
+                        </div>
+                        <p className="font-bold text-slate-800 text-sm">All Inventory Data Cleared (0 Units)</p>
+                        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                          Your active inventory has 0 units. You can import new stock via Excel/CSV using the dropzone above, add individual units, or restore master baseline.
+                        </p>
+                      </div>
+                    ) : (
+                      <span>No units matching search criteria.</span>
+                    )}
                   </td>
                 </tr>
               ) : (
