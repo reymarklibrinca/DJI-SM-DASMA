@@ -1122,7 +1122,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 text-slate-600 uppercase font-semibold text-[10px] border-b border-slate-200">
                     <tr>
-                      <th className="py-1.5 px-2">Focus Model</th>
+                      <th className="py-1.5 px-2 min-w-[140px]">Focus Model</th>
                       {staffList.map((st) => (
                         <th key={st} className="py-1.5 px-2 text-center border-l border-slate-200">
                           {st}
@@ -1137,7 +1137,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {pushData.categories.map((c) => (
                       <tr key={c.name} className="hover:bg-slate-50">
-                        <td className="py-2 px-2 font-bold text-slate-900">{c.name}</td>
+                        <td className="py-2 px-2 font-bold text-slate-900 min-w-[140px]">{c.name}</td>
                         {c.promoters.map((p) => (
                           <td key={p.staffIndex} className="py-2 px-2 text-center border-l border-slate-100">
                             <span className="text-slate-400">{p.target}</span>

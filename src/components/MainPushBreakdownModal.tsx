@@ -94,6 +94,8 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
     return map;
   }, [pushData]);
 
+  const activeCategoryNames = useMemo(() => pushData.categories.map((c) => c.name), [pushData]);
+
   // Current Month Sales matching filters for the Units tab
   const octoberMainPushSales = useMemo(() => {
     return sales
@@ -102,7 +104,7 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
         const d = dayOffsetToDate(s[0]);
         if (d.getMonth() !== activeMonthNum || d.getFullYear() !== activeYearNum) return false;
 
-        const modelCat = categorizeMainPushModel(s);
+        const modelCat = categorizeMainPushModel(s, activeCategoryNames);
         if (!modelCat) return false;
 
         if (selectedPromoterFilter !== 'all' && s[1] !== selectedPromoterFilter) return false;
@@ -857,7 +859,7 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
                         </tr>
                       ) : (
                         octoberMainPushSales.map(({ s, originalIdx }) => {
-                          const catName = categorizeMainPushModel(s);
+                          const catName = categorizeMainPushModel(s, activeCategoryNames);
                           return (
                             <tr key={originalIdx} className="hover:bg-slate-50">
                               <td className="py-2.5 px-3 font-semibold text-slate-900">
@@ -867,7 +869,7 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
                                 {staffList[s[1]]}
                               </td>
                               <td className="py-2.5 px-3">
-                                <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[11px]">
+                                <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[11px] whitespace-nowrap">
                                   {catName}
                                 </span>
                               </td>

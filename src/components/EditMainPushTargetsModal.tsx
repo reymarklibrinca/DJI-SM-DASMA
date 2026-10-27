@@ -27,6 +27,7 @@ import {
   getStockSubvariantsForTarget,
   isHardwareUnitItem,
   formatCurrency,
+  isSeriesStrictMatch,
 } from '../utils/calculations';
 import { DJI_DATA, MASTER_SERIES_LIST, MASTER_PRODUCTS } from '../data/initialData';
 
@@ -373,13 +374,10 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
     setErrorMessage(null);
     const initialTarget = Math.max(1, Number(newModelTarget) || 1);
 
-    // Populate default subvariants from Master Catalog products for this series
-    const upper = finalSeriesName.toUpperCase();
+    // Populate default subvariants from Master Catalog products for this series strictly
     const masterProds = MASTER_PRODUCTS.filter(
       (p) =>
-        (p.series.toUpperCase() === upper ||
-          p.series.toUpperCase().includes(upper) ||
-          upper.includes(p.series.toUpperCase())) &&
+        isSeriesStrictMatch(p.series, finalSeriesName) &&
         isHardwareUnitItem(p.series, p.productName)
     ).map((p) => p.productName);
 
@@ -625,13 +623,10 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
               const searchQuery = searchQueries[groupName] || '';
               const queryNormalized = nk(searchQuery);
 
-              // Catalog products belonging to this series that are not yet added
-              const upperGroup = groupName.toUpperCase();
+              // Catalog products belonging to this series that are not yet added (strict series match)
               const availableCatalogSkus = MASTER_PRODUCTS.filter(
                 (p) =>
-                  (p.series.toUpperCase() === upperGroup ||
-                    p.series.toUpperCase().includes(upperGroup) ||
-                    upperGroup.includes(p.series.toUpperCase())) &&
+                  isSeriesStrictMatch(p.series, groupName) &&
                   isHardwareUnitItem(p.series, p.productName) &&
                   !selectedKeys.has(nk(p.productName))
               ).map((p) => p.productName);
@@ -642,7 +637,7 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
                   className="rounded-xl border border-slate-300 bg-white shadow-2xs overflow-hidden"
                 >
                   {/* Top Bar: Group Name + Target Stepper + Delete */}
-                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-black text-slate-900 text-sm tracking-wide uppercase font-mono">
@@ -746,7 +741,7 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
                       </div>
 
                       {/* Dynamic Result Pill */}
-                      <div className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-1">
+                      <div className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-1 shrink-0 whitespace-nowrap">
                         <span>=</span>
                         <span className="font-black text-emerald-900">
                           {Math.round(targetVal / Math.max(1, draftDividers[groupName] ?? 3))}

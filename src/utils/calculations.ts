@@ -757,24 +757,69 @@ export const DEFAULT_MAIN_PUSH_VARIANTS: Record<string, string[]> = {
   ],
 };
 
-export function categorizeMainPushModel(s: SaleTuple): string | null {
+/**
+ * Clean normalized series key: uppercase, alphanumeric only, with common brand prefixes and suffixes stripped.
+ * e.g. "NEO 2 SERIES" -> "NEO2"
+ *      "NEO SERIES"   -> "NEO"
+ *      "OSMO POCKET 4P SERIES" -> "POCKET4P"
+ *      "OSMO POCKET 4 SERIES"  -> "POCKET4"
+ *      "LITO X1 SERIES" -> "LITOX1"
+ *      "LITO 1 SERIES"  -> "LITO1"
+ */
+export function normalizeSeriesKey(seriesName: string): string {
+  if (!seriesName) return '';
+  return seriesName
+    .toUpperCase()
+    .replace(/^DJI\s*/, '')
+    .replace(/^OSMO\s*/, '')
+    .replace(/[^A-Z0-9]/g, '')
+    .replace(/^DJI/, '')
+    .replace(/^OSMO/, '')
+    .replace(/SERIES$|SERIE$/, '');
+}
+
+/**
+ * Clean normalized product SKU key for exact variant comparisons.
+ */
+export function normalizeProductKey(prodName: string): string {
+  if (!prodName) return '';
+  return prodName
+    .toUpperCase()
+    .replace(/^DJI\s*/, '')
+    .replace(/^OSMO\s*/, '')
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Checks if two series names strictly match without partial cross-series bleeding.
+ */
+export function isSeriesStrictMatch(seriesA: string, seriesB: string): boolean {
+  if (!seriesA || !seriesB) return false;
+  const kA = normalizeSeriesKey(seriesA);
+  const kB = normalizeSeriesKey(seriesB);
+  return kA !== '' && kA === kB;
+}
+
+export function categorizeMainPushModel(s: SaleTuple, activeCategoryNames?: string[]): string | null {
   const serName = DJI_DATA.ser[s[2]] || '';
-  if (serName.includes('MINI 5 PRO')) return 'MINI 5 PRO SERIES';
-  if (serName.includes('NEO 2')) return 'NEO 2 SERIES';
-  if (serName.includes('NEO')) return 'NEO SERIES';
-  if (serName.includes('LITO X1')) return 'LITO X1 SERIES';
-  if (serName.includes('LITO')) return 'LITO 1 SERIES';
-  if (serName.includes('ACTION 6')) return 'OSMO ACTION 6 SERIES';
-  if (serName.includes('ACTION 5')) return 'OSMO ACTION 5 PRO SERIES';
-  if (serName.includes('ACTION 4')) return 'OSMO ACTION 4 SERIES';
-  if (serName.includes('POCKET 4P')) return 'OSMO POCKET 4P SERIES';
-  if (serName.includes('POCKET 4')) return 'OSMO POCKET 4 SERIES';
-  if (serName.includes('POCKET 3')) return 'OSMO POCKET 3 SERIES';
-  if (serName.includes('AIR 3S')) return 'AIR 3S SERIES';
-  if (serName.includes('MAVIC 4')) return 'MAVIC 4 PRO SERIES';
-  if (serName.includes('AVATA 360')) return 'AVATA 360 SERIES';
-  if (isHardwareUnitItem(serName)) return serName;
-  return null;
+  if (!isHardwareUnitItem(serName)) return null;
+
+  const saleSerKey = normalizeSeriesKey(serName);
+
+  // If active targets are provided, strictly match against configured target series first
+  if (activeCategoryNames && activeCategoryNames.length > 0) {
+    const matched = activeCategoryNames.find((name) => normalizeSeriesKey(name) === saleSerKey);
+    if (matched) return matched;
+  }
+
+  // Fallback to DJI_DATA.ser canonical series matching
+  for (const catName of DJI_DATA.ser) {
+    if (isHardwareUnitItem(catName) && normalizeSeriesKey(catName) === saleSerKey) {
+      return catName;
+    }
+  }
+
+  return serName;
 }
 
 export function calculateMainPushBreakdown(
@@ -851,11 +896,7 @@ export function calculateMainPushBreakdown(
         candidateVariants = [...known];
       } else {
         const stockMatches = DJI_DATA.stock.filter(
-          (s) =>
-            (s[0].toUpperCase() === upper ||
-              s[0].toUpperCase().includes(upper) ||
-              upper.includes(s[0].toUpperCase())) &&
-            isHardwareUnitItem(s[0], s[1])
+          (s) => isSeriesStrictMatch(s[0], name) && isHardwareUnitItem(s[0], s[1])
         );
 
         if (stockMatches.length > 0) {
@@ -863,7 +904,7 @@ export function calculateMainPushBreakdown(
         } else {
           const matches = DJI_DATA.ser
             .filter((s) => isHardwareUnitItem(s))
-            .filter((s) => s.includes(upper) || upper.includes(s));
+            .filter((s) => isSeriesStrictMatch(s, name));
           if (matches.length > 0) {
             candidateVariants = matches.map((m) => ({ label: m, rawSerName: m }));
           } else if (isHardwareUnitItem(name)) {
@@ -911,68 +952,87 @@ export function calculateMainPushBreakdown(
   });
 
   // Aggregate current month sales with variant matching
+  // Aggregate current month sales with zero-overlap, best-match scoring
   currentMonthSales.forEach((s) => {
     if (s[2] === ACCESSORIES_INDEX || s[2] === CARE_INDEX) return;
     const serName = DJI_DATA.ser[s[2]] || '';
     if (!isHardwareUnitItem(serName)) return;
+
     const u = s[4] ?? 1;
     const sn = s[6] ? s[6].trim().toUpperCase() : '';
-    const unitProdName = sn ? (unitsBySn.get(sn) || '').toUpperCase() : '';
+    const unitProdName = sn ? (unitsBySn.get(sn) || '') : '';
+    const saleSerKey = normalizeSeriesKey(serName);
+    const saleProdKey = normalizeProductKey(unitProdName);
+
+    // Identify the single best-matching category and variant among all active target groups
+    let bestCat: MainPushCategoryBreakdown | null = null;
+    let bestVariant: VariantBreakdown | null = null;
+    let bestScore = 0;
 
     for (const cat of categories) {
-      let matched = false;
-      const catUpper = cat.name.toUpperCase();
-      const serUpper = serName.toUpperCase();
+      const catKey = normalizeSeriesKey(cat.name);
+      const isExactSeries = catKey === saleSerKey;
 
       for (const variant of cat.variants) {
-        const vRaw = variant.rawSerName.toUpperCase();
-        const vLabel = variant.label.toUpperCase();
-        const isMatch =
-          (unitProdName &&
-            (unitProdName === vLabel ||
-              unitProdName.includes(vLabel) ||
-              vLabel.includes(unitProdName))) ||
-          serUpper === vRaw ||
-          serUpper === vLabel ||
-          serUpper.includes(vRaw) ||
-          serUpper.includes(vLabel) ||
-          (vLabel.includes('ACTION 4') && serUpper.includes('ACTION 4')) ||
-          (vLabel.includes('ACTION 5') && serUpper.includes('ACTION 5')) ||
-          (vLabel.includes('ACTION 6') && serUpper.includes('ACTION 6')) ||
-          (vLabel.includes('POCKET 3') && serUpper.includes('POCKET 3')) ||
-          (vLabel.includes('POCKET 4') && serUpper.includes('POCKET 4')) ||
-          (vLabel.includes('MINI 5') && serUpper.includes('MINI 5')) ||
-          (vLabel.includes('NEO') && serUpper.includes('NEO')) ||
-          (vLabel.includes('LITO') && serUpper.includes('LITO'));
+        const vProdKey = normalizeProductKey(variant.label);
+        const vRawKey = normalizeSeriesKey(variant.rawSerName);
 
-        if (isMatch) {
-          variant.sold += u;
-          if (variant.selected) {
-            cat.storeSold += u;
-            const promoter = cat.promoters[s[1]];
-            if (promoter) {
-              promoter.sold += u;
+        // Product SKU exact match from SN lookup gets highest score
+        if (saleProdKey && vProdKey) {
+          if (saleProdKey === vProdKey) {
+            const score = 110;
+            if (score > bestScore) {
+              bestScore = score;
+              bestCat = cat;
+              bestVariant = variant;
+            }
+          } else if (saleProdKey.includes(vProdKey) || vProdKey.includes(saleProdKey)) {
+            const score = 95;
+            if (score > bestScore) {
+              bestScore = score;
+              bestCat = cat;
+              bestVariant = variant;
             }
           }
-          matched = true;
-          break;
+        }
+
+        // Strict series match with variant's source series
+        if (isExactSeries && vRawKey === saleSerKey) {
+          const score = 80;
+          if (score > bestScore) {
+            bestScore = score;
+            bestCat = cat;
+            bestVariant = variant;
+          }
         }
       }
 
-      // If no specific variant matched, but the series directly matches
-      if (!matched && (serUpper === catUpper || serUpper.includes(catUpper) || catUpper.includes(serUpper))) {
-        const allSelected = cat.variants.every((v) => v.selected);
-        if (allSelected || cat.variants.length === 0) {
-          cat.storeSold += u;
-          const promoter = cat.promoters[s[1]];
+      // If category strictly matches the sale's series key
+      if (isExactSeries && bestScore < 75) {
+        bestScore = 75;
+        bestCat = cat;
+        bestVariant = cat.variants.find((v) => v.selected) || cat.variants[0] || null;
+      }
+    }
+
+    // Apply the sale units ONLY to the single winning category (zero overlap or cross-bleeding)
+    if (bestCat && bestScore >= 75) {
+      if (bestVariant) {
+        bestVariant.sold += u;
+        if (bestVariant.selected) {
+          bestCat.storeSold += u;
+          const promoter = bestCat.promoters[s[1]];
           if (promoter) {
             promoter.sold += u;
           }
-          matched = true;
+        }
+      } else {
+        bestCat.storeSold += u;
+        const promoter = bestCat.promoters[s[1]];
+        if (promoter) {
+          promoter.sold += u;
         }
       }
-
-      if (matched) break;
     }
   });
 

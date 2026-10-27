@@ -237,7 +237,13 @@ export function useDjiStore() {
     setCloudSyncStatus('syncing');
     setSyncFeedback('Syncing with Firebase...');
     try {
-      const remote = await fetchCloudData();
+      let remote: any = null;
+      try {
+        remote = await fetchCloudData();
+      } catch (fetchErr) {
+        console.warn('Manual sync: fetch had error, continuing to save...', fetchErr);
+      }
+
       let nextState = localData;
       if (remote) {
         const { reconciled } = reconcileStoreState(localData, remote, { preferLocal: true });

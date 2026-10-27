@@ -1,11 +1,11 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
+  initializeFirestore,
   getFirestore,
   doc,
   getDoc,
   setDoc,
   onSnapshot,
-  getDocFromServer,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -42,8 +42,21 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Cloud Firestore using provisioned database ID
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+// Initialize Cloud Firestore using provisioned database ID with experimentalForceLongPolling
+// CRITICAL: experimentalForceLongPolling forces HTTPS long-polling instead of WebSockets,
+// preventing 'client is offline' / 'unreachable' errors caused by sandboxed iframes or WebSocket blocks.
+let firestoreDb: any;
+try {
+  firestoreDb = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    ignoreUndefinedProperties: true,
+  }, (firebaseConfig as any).firestoreDatabaseId);
+} catch (e) {
+  // If already initialized (e.g. during fast refresh/re-import), reuse the existing instance
+  firestoreDb = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+}
+
+export const db = firestoreDb;
 
 const STORE_PATH = 'store_state';
 const STORE_DOC_ID = 'dasmarinas';
@@ -51,11 +64,14 @@ const STORE_DOC_ID = 'dasmarinas';
 // Test connection on boot
 export async function testConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    return true;
+    const storeDoc = doc(db, STORE_PATH, STORE_DOC_ID);
+    const snap = await getDoc(storeDoc);
+    return snap.exists();
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.warn('Firebase client appears offline:', error.message);
+    } else {
+      console.warn('Firebase connection test error:', error);
     }
     return false;
   }
@@ -66,6 +82,7 @@ testConnection().catch(() => {});
 
 /**
  * 1. Fetch latest store data once from Firestore
+ * Returns data if found, null if document doesn't exist, throws on network/unreachable error
  */
 export async function fetchCloudData(): Promise<any | null> {
   const path = `${STORE_PATH}/${STORE_DOC_ID}`;
@@ -75,15 +92,15 @@ export async function fetchCloudData(): Promise<any | null> {
     if (snapshot.exists()) {
       return snapshot.data();
     }
-    return null;
+    return null; // document genuinely not created yet
   } catch (err) {
     handleFirestoreError(err, OperationType.GET, path);
-    return null;
+    throw err; // Allow callers to know this was a network/offline error
   }
 }
 
 /**
- * 2. Save store data directly to Cloud Firestore
+ * 2. Save store data directly to Cloud Firestore with retry
  */
 export async function saveCloudData(data: any): Promise<boolean> {
   const path = `${STORE_PATH}/${STORE_DOC_ID}`;
@@ -96,14 +113,28 @@ export async function saveCloudData(data: any): Promise<boolean> {
     return true;
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
-    return false;
+    // One immediate retry on transient network glitch
+    try {
+      await new Promise((res) => setTimeout(res, 500));
+      const storeDoc = doc(db, STORE_PATH, STORE_DOC_ID);
+      const sanitized = JSON.parse(JSON.stringify(data));
+      sanitized.updatedAt = new Date().toISOString();
+      await setDoc(storeDoc, sanitized, { merge: true });
+      return true;
+    } catch (retryErr) {
+      handleFirestoreError(retryErr, OperationType.WRITE, path);
+      return false;
+    }
   }
 }
 
 /**
  * 3. Real-time live listener (auto-syncs between store devices without page refresh)
  */
-export function subscribeToCloudData(callback: (data: any) => void): () => void {
+export function subscribeToCloudData(
+  callback: (data: any) => void,
+  onError?: (err: any) => void
+): () => void {
   const path = `${STORE_PATH}/${STORE_DOC_ID}`;
   const storeDoc = doc(db, STORE_PATH, STORE_DOC_ID);
 
@@ -116,6 +147,7 @@ export function subscribeToCloudData(callback: (data: any) => void): () => void 
     },
     (error) => {
       handleFirestoreError(error, OperationType.GET, path);
+      if (onError) onError(error);
     }
   );
 
