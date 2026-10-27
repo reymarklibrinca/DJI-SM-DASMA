@@ -124,13 +124,13 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
     try {
       const templateRows = [
         ['EAN / Barcode', 'Serial Number (SN)', 'Product Name', 'Price / SRP', 'Category / Series', 'Status'],
-        ['6941565983712', '1581F895C262401709R5', 'DJI Air 3S Fly More Combo (DJI RC-N3)', 72490, 'AIR SERIES', 'IN STOCK'],
-        ['6941565988113', '9KRXP3P00BV881', 'Osmo Action 6 Adventure Combo', 31390, 'ACTION 6', 'IN STOCK'],
-        ['6941565984429', 'ANGVP1J0020KTA', 'Osmo Pocket 4 Standard Combo', 27990, 'POCKET 4P Standard', 'IN STOCK'],
-        ['6941565982104', '1581F9DEC25AL029CX61', 'DJI Mini 5 Pro', 40690, 'MINI 5 PRO SERIES', 'IN STOCK'],
-        ['6941565981152', '1581FA6QC25B700CZ2QJ', 'DJI NEO 2', 12390, 'DJI NEO 2', 'IN STOCK'],
-        ['6941565980025', 'B3QTP4M0014J87', 'DJI Mic Mini 2 (1 TX + 1 Mobile RX + Case)', 2990, 'MIC MINI 2', 'IN STOCK'],
-        ['6941565979814', '1581FB34C261T00396Z8', 'DJI Lito X1', 21690, 'LITO X1', 'IN STOCK'],
+        ['6941565983712', '1581F895C262401709R5', 'DJI Air 3S Fly More Combo (DJI RC-N3)', 69990, 'AIR 3S SERIES', 'IN STOCK'],
+        ['6941565988113', '9KRXP3P00BV881', 'Osmo Action 6 Adventure Combo', 28990, 'OSMO ACTION 6 SERIES', 'IN STOCK'],
+        ['6941565984429', 'ANGVP1J0020KTA', 'Osmo Pocket 4 Standard Combo', 28990, 'OSMO POCKET 4 SERIES', 'IN STOCK'],
+        ['6941565982104', '1581F9DEC25AL029CX61', 'DJI Mini 5 Pro', 38990, 'MINI 5 PRO SERIES', 'IN STOCK'],
+        ['6941565981152', '1581FA6QC25B700CZ2QJ', 'DJI NEO 2', 11990, 'NEO 2 SERIES', 'IN STOCK'],
+        ['6941565980025', 'B3QTP4M0014J87', 'DJI Mic Mini 2 (1 TX + 1 Mobile RX + Charging Case)', 8490, 'DJI MIC MINI 2 SERIES', 'IN STOCK'],
+        ['6941565979814', '1581FB34C261T00396Z8', 'DJI Lito X1', 19990, 'LITO X1 SERIES', 'IN STOCK'],
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(templateRows);
@@ -466,6 +466,7 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
     units.forEach((u) => {
       if (u[3]) set.add(u[3]);
     });
+    DJI_DATA.ser.forEach((s) => set.add(s));
     return Array.from(set).sort();
   }, [units]);
 

@@ -9,14 +9,13 @@ import {
   ChevronDown,
   ChevronUp,
   Layers,
-  AlertCircle,
-  PlusCircle,
   Search,
   CheckSquare,
   Square,
   Box,
   Sliders,
-  Filter,
+  PlusCircle,
+  HelpCircle,
 } from 'lucide-react';
 import { DEFAULT_MAIN_PUSH_TARGETS } from '../hooks/useDjiStore';
 import {
@@ -28,7 +27,7 @@ import {
   isHardwareUnitItem,
   formatCurrency,
 } from '../utils/calculations';
-import { DJI_DATA } from '../data/initialData';
+import { DJI_DATA, MASTER_SERIES_LIST, MASTER_PRODUCTS } from '../data/initialData';
 
 interface EditMainPushTargetsModalProps {
   isOpen: boolean;
@@ -43,9 +42,10 @@ interface EditMainPushTargetsModalProps {
   onDeleteTarget?: (modelName: string) => void;
   soldByModel?: Record<string, number>;
   variantSales?: Record<string, Record<string, number>>;
+  activeMonthName?: string;
 }
 
-// Normalizer helper matching user HTML specification (nk = normalized key)
+// Normalizer helper (nk = normalized key)
 const nk = (s: string) =>
   String(s || '')
     .toLowerCase()
@@ -62,17 +62,28 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
   onDeleteTarget,
   soldByModel = {},
   variantSales = {},
+  activeMonthName,
 }) => {
   const [draftTargets, setDraftTargets] = useState<Record<string, number>>({});
   const [draftVariants, setDraftVariants] = useState<Record<string, string[]>>({});
   const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
   const [openCatalogs, setOpenCatalogs] = useState<Record<string, boolean>>({});
   const [openSeriesMap, setOpenSeriesMap] = useState<Record<string, boolean>>({});
-  const [groupViewMode, setGroupViewMode] = useState<Record<string, 'catalog' | 'selected'>>({});
-  const [newModelName, setNewModelName] = useState('');
-  const [newModelTarget, setNewModelTarget] = useState(10);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // New Group State (Follows Master Series)
+  const [selectedMasterSeries, setSelectedMasterSeries] = useState<string>('');
+  const [customSeriesInput, setCustomSeriesInput] = useState<string>('');
+  const [newModelTarget, setNewModelTarget] = useState<number>(10);
+
+  // Per-Group "Add Subvariant" inputs
+  const [newSubvariantInputs, setNewSubvariantInputs] = useState<Record<string, string>>({});
+
+  // Hardware Master Series (Drone, Handheld, Audio, Power)
+  const hardwareMasterSeries = useMemo(() => {
+    return MASTER_SERIES_LIST.filter((s) => isHardwareUnitItem(s));
+  }, []);
 
   // Master list of all subvariants (hardware units only) from stock
   const allStockSubvariants = useMemo(() => getAllStockSubvariants(), []);
@@ -95,7 +106,6 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
   const allSeriesNames = useMemo(() => {
     const names = Array.from(stockBySeries.keys());
     return names.sort((a, b) => {
-      // Prioritize primary camera/drone series on top
       const getPriority = (s: string) => {
         const u = s.toUpperCase();
         if (u.includes('ACTION')) return 1;
@@ -107,8 +117,7 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
         if (u.includes('AVATA')) return 7;
         if (u.includes('OSMO 360')) return 8;
         if (u.includes('MAVIC')) return 9;
-        if (u.includes('OM')) return 10;
-        if (u.includes('RONIN') || u.includes('RS')) return 11;
+        if (u.includes('RONIN') || u.includes('RS')) return 10;
         return 20;
       };
       const pA = getPriority(a);
@@ -124,16 +133,14 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
       setDraftTargets({ ...currentTargets });
       setErrorMessage(null);
       setSearchQueries({});
+      setNewSubvariantInputs({});
 
       const initialVariants: Record<string, string[]> = {};
       const initialCatalogs: Record<string, boolean> = {};
       const initialSeriesMap: Record<string, boolean> = {};
-      const initialViewMode: Record<string, 'catalog' | 'selected'> = {};
 
       Object.keys(currentTargets).forEach((series) => {
-        // Expand catalog drawer by default
-        initialCatalogs[series] = true;
-        initialViewMode[series] = 'catalog';
+        initialCatalogs[series] = false;
 
         // Pre-select variants based on currentVariants, or defaults, or known variants
         if (currentVariants[series] && Array.isArray(currentVariants[series])) {
@@ -168,9 +175,9 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
       setDraftVariants(initialVariants);
       setOpenCatalogs(initialCatalogs);
       setOpenSeriesMap(initialSeriesMap);
-      setGroupViewMode(initialViewMode);
       setIsAddingNew(false);
-      setNewModelName('');
+      setSelectedMasterSeries('');
+      setCustomSeriesInput('');
       setNewModelTarget(10);
     }
   }, [isOpen, currentTargets, currentVariants, allSeriesNames]);
@@ -184,59 +191,87 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
     }));
   };
 
-  const handleStep = (groupName: string, step: number) => {
+  const handleStep = (groupName: string, delta: number) => {
     setDraftTargets((prev) => {
-      const current = prev[groupName] ?? 0;
+      const cur = prev[groupName] || 0;
       return {
         ...prev,
-        [groupName]: Math.max(0, current + step),
+        [groupName]: Math.max(0, cur + delta),
       };
     });
   };
 
-  // Toggle unit selection under a target group (matching data-mp in HTML)
-  const handleToggleUnit = (groupName: string, unitName: string) => {
+  // Toggle variant selection inside a target group
+  const handleToggleUnit = (groupName: string, productName: string) => {
     setDraftVariants((prev) => {
-      const currentList = prev[groupName] || [];
-      const key = nk(unitName);
-      const isSelected = currentList.some((x) => nk(x) === key);
-      const nextList = isSelected
-        ? currentList.filter((x) => nk(x) !== key)
-        : [...currentList, unitName];
-
-      return {
-        ...prev,
-        [groupName]: nextList,
-      };
+      const cur = prev[groupName] || [];
+      const normProd = nk(productName);
+      const isSelected = cur.some((v) => nk(v) === normProd);
+      let updated: string[];
+      if (isSelected) {
+        updated = cur.filter((v) => nk(v) !== normProd);
+      } else {
+        updated = [...cur, productName];
+      }
+      return { ...prev, [groupName]: updated };
     });
   };
 
-  // Toggle whole series for a target group (matching data-sa in HTML)
-  const handleToggleWholeSeries = (groupName: string, seriesName: string, selectAll: boolean) => {
-    const itemsInSeries = (stockBySeries.get(seriesName) || []).map((x) => x.productName);
-    const seriesKeys = new Set(itemsInSeries.map(nk));
+  // ADD A SUBVARIANT DIRECTLY (NO SUGGESTIONS)
+  const handleAddSubvariant = (groupName: string) => {
+    const rawVal = newSubvariantInputs[groupName]?.trim();
+    if (!rawVal) return;
 
     setDraftVariants((prev) => {
-      const currentList = prev[groupName] || [];
-      // Remove all items of this series
-      const withoutSeries = currentList.filter((x) => !seriesKeys.has(nk(x)));
-      // If selectAll is true, add all items in this series
-      const nextList = selectAll ? [...withoutSeries, ...itemsInSeries] : withoutSeries;
-
+      const cur = prev[groupName] || [];
+      if (cur.some((v) => nk(v) === nk(rawVal))) {
+        return prev; // already exists
+      }
       return {
         ...prev,
-        [groupName]: nextList,
+        [groupName]: [...cur, rawVal],
       };
     });
 
-    // Ensure this series is open
-    setOpenSeriesMap((prev) => ({
+    setNewSubvariantInputs((prev) => ({
       ...prev,
-      [`${groupName}|${seriesName}`]: true,
+      [groupName]: '',
     }));
   };
 
-  // Toggle catalog drawer open/close (matching details data-gd)
+  // DELETE A SUBVARIANT DIRECTLY
+  const handleDeleteSubvariant = (groupName: string, subvariantName: string) => {
+    setDraftVariants((prev) => {
+      const cur = prev[groupName] || [];
+      return {
+        ...prev,
+        [groupName]: cur.filter((v) => nk(v) !== nk(subvariantName)),
+      };
+    });
+  };
+
+  // Toggle entire series in catalog tree
+  const handleToggleSeriesInGroup = (groupName: string, serName: string) => {
+    const unitsInSeries = stockBySeries.get(serName) || [];
+    setDraftVariants((prev) => {
+      const cur = prev[groupName] || [];
+      const curKeys = new Set(cur.map(nk));
+      const seriesKeys = unitsInSeries.map((u) => nk(u.productName));
+      const allSelected = seriesKeys.every((k) => curKeys.has(k));
+
+      let updated: string[];
+      if (allSelected) {
+        updated = cur.filter((v) => !seriesKeys.includes(nk(v)));
+      } else {
+        const toAdd = unitsInSeries
+          .filter((u) => !curKeys.has(nk(u.productName)))
+          .map((u) => u.productName);
+        updated = [...cur, ...toAdd];
+      }
+      return { ...prev, [groupName]: updated };
+    });
+  };
+
   const handleToggleCatalogDrawer = (groupName: string) => {
     setOpenCatalogs((prev) => ({
       ...prev,
@@ -244,111 +279,88 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
     }));
   };
 
-  // Toggle series accordion open/close (matching details data-sd)
-  const handleToggleSeriesAccordion = (groupName: string, seriesName: string) => {
-    const key = `${groupName}|${seriesName}`;
+  const handleToggleSeriesFolder = (groupName: string, serName: string) => {
+    const key = `${groupName}|${serName}`;
     setOpenSeriesMap((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));
   };
 
-  // Delete a target series group (matching data-mr in HTML)
+  // Delete a target series group
   const handleDeleteGroup = (groupName: string) => {
     setDraftTargets((prev) => {
       const next = { ...prev };
       delete next[groupName];
       return next;
     });
-
     setDraftVariants((prev) => {
       const next = { ...prev };
       delete next[groupName];
       return next;
     });
-
     if (onDeleteTarget) {
       onDeleteTarget(groupName);
     }
   };
 
-  // Restore a default series
-  const handleRestoreDefaultSeries = (modelName: string) => {
-    const defaultTarget = DEFAULT_MAIN_PUSH_TARGETS[modelName] ?? 15;
-    const defaultVars = DEFAULT_MAIN_PUSH_VARIANTS[modelName] ?? [modelName];
-
-    setDraftTargets((prev) => ({
-      ...prev,
-      [modelName]: defaultTarget,
-    }));
-
-    setDraftVariants((prev) => ({
-      ...prev,
-      [modelName]: [...defaultVars],
-    }));
-
-    setOpenCatalogs((prev) => ({
-      ...prev,
-      [modelName]: true,
-    }));
-
-    // Auto open matching series
-    const uGroup = modelName.toUpperCase();
-    allSeriesNames.forEach((ser) => {
-      const uSer = ser.toUpperCase();
-      if (uGroup.includes(uSer) || uSer.includes(uGroup)) {
-        setOpenSeriesMap((prev) => ({
-          ...prev,
-          [`${modelName}|${ser}`]: true,
-        }));
-      }
-    });
-  };
-
-  // Add new target series group (matching #mpa in HTML)
+  // ADD NEW TARGET GROUP FOLLOWING THE MASTER SERIES
   const handleAddNewGroup = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = newModelName.trim();
-    if (!trimmed) return;
+    const finalSeriesName =
+      selectedMasterSeries === '__CUSTOM__'
+        ? customSeriesInput.trim()
+        : (selectedMasterSeries || customSeriesInput).trim();
 
-    if (!isHardwareUnitItem(trimmed)) {
+    if (!finalSeriesName) {
+      setErrorMessage('Please select a Master Series or enter a custom target name.');
+      return;
+    }
+
+    if (!isHardwareUnitItem(finalSeriesName)) {
       setErrorMessage(
-        `"${trimmed}" is classified as an accessory or service plan. Main Push targets are strictly for hardware units only (e.g. Action 6, Pocket 4, Mini 5 Pro, Neo).`
+        `"${finalSeriesName}" is classified as an accessory or service plan. Main Push targets follow hardware series only (e.g. Action 6, Pocket 4, Mini 5 Pro, Neo 2).`
       );
+      return;
+    }
+
+    if (draftTargets[finalSeriesName] !== undefined) {
+      setErrorMessage(`Target group "${finalSeriesName}" already exists in the list.`);
       return;
     }
 
     setErrorMessage(null);
     const initialTarget = Math.max(1, Number(newModelTarget) || 1);
 
+    // Populate default subvariants from Master Catalog products for this series
+    const upper = finalSeriesName.toUpperCase();
+    const masterProds = MASTER_PRODUCTS.filter(
+      (p) =>
+        (p.series.toUpperCase() === upper ||
+          p.series.toUpperCase().includes(upper) ||
+          upper.includes(p.series.toUpperCase())) &&
+        isHardwareUnitItem(p.series, p.productName)
+    ).map((p) => p.productName);
+
+    const stockUnits = masterProds.length > 0 ? masterProds : getStockSubvariantsForTarget(finalSeriesName).map((s) => s.productName);
+
     setDraftTargets((prev) => ({
       ...prev,
-      [trimmed]: initialTarget,
+      [finalSeriesName]: initialTarget,
     }));
 
-    const stockUnits = getStockSubvariantsForTarget(trimmed);
     setDraftVariants((prev) => ({
       ...prev,
-      [trimmed]: stockUnits.map((s) => s.productName),
+      [finalSeriesName]: stockUnits,
     }));
 
     setOpenCatalogs((prev) => ({
       ...prev,
-      [trimmed]: true,
+      [finalSeriesName]: false,
     }));
 
-    // Open matching series
-    const u = trimmed.toUpperCase();
-    allSeriesNames.forEach((ser) => {
-      if (ser.toUpperCase().includes(u) || u.includes(ser.toUpperCase())) {
-        setOpenSeriesMap((prev) => ({
-          ...prev,
-          [`${trimmed}|${ser}`]: true,
-        }));
-      }
-    });
-
-    setNewModelName('');
+    setSelectedMasterSeries('');
+    setCustomSeriesInput('');
     setNewModelTarget(10);
     setIsAddingNew(false);
   };
@@ -378,22 +390,6 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
     0
   );
 
-  // Default series that have been deleted
-  const deletedDefaultSeries = Object.keys(DEFAULT_MAIN_PUSH_TARGETS).filter(
-    (key) => !(key in draftTargets)
-  );
-
-  // Format Series Display Title
-  const getSeriesDisplayTitle = (name: string): string => {
-    const upper = name.toUpperCase();
-    if (upper === 'OA SERIES' || upper === 'ACTION' || upper.includes('ACTION')) return 'ACTION SERIES';
-    if (upper === 'POCKET SERIES' || upper.includes('POCKET')) return 'POCKET 4 SERIES';
-    if (upper.includes('NEO')) return 'NEO SERIES';
-    if (upper.includes('MINI')) return 'MINI 5 PRO SERIES';
-    if (upper.includes('LITO')) return 'LITO X1 SERIES';
-    return upper.endsWith('SERIES') ? upper : `${upper} SERIES`;
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div
@@ -401,124 +397,203 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
               <Target className="w-5 h-5" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base font-bold text-slate-900 leading-tight">
-                  Main Push Targets & Catalog
+                <h2 className="text-base font-bold text-white leading-tight">
+                  Edit Main Push Targets & Subvariants
                 </h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                  Checkmark to Select Units
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                  Follows Master Series
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Hardware Units Only · No Accessories
-                </span>
+                {activeMonthName && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                    Active: {activeMonthName}
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Set monthly unit quotas and check off individual subvariants from the full catalog. Accessories and Care Refresh are strictly excluded.
+              <p className="text-xs text-slate-400 mt-0.5">
+                Set monthly target quotas by master series and customize included subvariants without automated suggestions.
               </p>
             </div>
           </div>
           <button
-            type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs">
-          {/* Error / Warning Alert Banner */}
+        {/* Scrollable Body */}
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
           {errorMessage && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-rose-800 text-xs animate-in fade-in duration-150">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span className="font-semibold">{errorMessage}</span>
-              </div>
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold flex items-center justify-between">
+              <span>{errorMessage}</span>
               <button
                 type="button"
                 onClick={() => setErrorMessage(null)}
-                className="text-rose-600 hover:text-rose-800 font-bold ml-2 cursor-pointer text-xs underline"
+                className="text-rose-500 hover:text-rose-700 font-bold ml-2 cursor-pointer"
               >
-                Dismiss
+                ✕
               </button>
             </div>
           )}
 
-          {/* Summary Box */}
-          <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between">
+          {/* Store Target Summary */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="text-[11px] font-bold text-blue-900 uppercase tracking-wide">
-                Store Target Summary
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+                Store Main Push Quota Summary ({activeMonthName || 'Current Month'})
               </div>
-              <div className="text-sm text-blue-700 mt-0.5">
-                Current MTD Sold: <span className="font-bold">{totalSoldUnits}</span> units across{' '}
-                <span className="font-bold">{Object.keys(draftTargets).length}</span> focus targets
+              <div className="text-xs text-slate-700 mt-0.5">
+                Current Sales Sold: <span className="font-bold text-slate-900">{totalSoldUnits}</span> units across{' '}
+                <span className="font-bold text-slate-900">{Object.keys(draftTargets).length}</span> series targets
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-black text-blue-900">{totalTargetUnits} units</div>
-              <div className="text-[11px] font-semibold text-blue-700">
-                {Math.max(0, totalTargetUnits - totalSoldUnits)} units remaining
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-2xl font-black text-slate-900">{totalTargetUnits} units</div>
+                <div className="text-[11px] font-semibold text-slate-500">
+                  {Math.max(0, totalTargetUnits - totalSoldUnits)} units remaining
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsAddingNew(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-98"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Add Series Target</span>
+              </button>
             </div>
           </div>
 
-          {/* Restore Deleted Series Banner */}
-          {deletedDefaultSeries.length > 0 && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs">
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Deleted series ({deletedDefaultSeries.length}):</span>
+          {/* ADD NEW TARGET GROUP (FOLLOWS MASTER SERIES) */}
+          {isAddingNew && (
+            <form
+              onSubmit={handleAddNewGroup}
+              className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-3 animate-in fade-in duration-150"
+            >
+              <div className="font-bold text-blue-900 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  <span>Add Main Push Target (Follow Master Series)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingNew(false)}
+                  className="text-slate-400 hover:text-slate-600 font-bold text-xs cursor-pointer"
+                >
+                  ✕ Cancel
+                </button>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {deletedDefaultSeries.map((sName) => (
-                  <button
-                    key={sName}
-                    type="button"
-                    onClick={() => handleRestoreDefaultSeries(sName)}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 rounded-lg text-xs font-bold text-amber-900 shadow-2xs transition-colors cursor-pointer"
-                    title={`Restore ${sName} target`}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Select Master Series
+                  </label>
+                  <select
+                    value={selectedMasterSeries}
+                    onChange={(e) => setSelectedMasterSeries(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-hidden cursor-pointer"
                   >
-                    <PlusCircle className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Restore {sName}</span>
-                  </button>
-                ))}
+                    <option value="">-- Choose from Master Series catalog --</option>
+                    {hardwareMasterSeries.map((s) => (
+                      <option key={s} value={s} disabled={draftTargets[s] !== undefined}>
+                        {s} {draftTargets[s] !== undefined ? '(Already Added)' : ''}
+                      </option>
+                    ))}
+                    <option value="__CUSTOM__">+ Custom Series Name...</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Monthly Quota (Units)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newModelTarget}
+                    onChange={(e) => setNewModelTarget(Number(e.target.value) || 1)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                  />
+                </div>
               </div>
-            </div>
+
+              {selectedMasterSeries === '__CUSTOM__' && (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Custom Target Series Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. MAVIC 4 PRO SERIES or SPECIAL COMBO"
+                    value={customSeriesInput}
+                    onChange={(e) => setCustomSeriesInput(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsAddingNew(false)}
+                  className="px-3 py-1.5 text-slate-600 hover:text-slate-800 font-semibold text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!selectedMasterSeries && !customSeriesInput}
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer"
+                >
+                  Confirm & Add Target
+                </button>
+              </div>
+            </form>
           )}
 
-          {/* Target Groups List */}
-          <div className="space-y-5">
+          {/* TARGET GROUPS LIST */}
+          <div className="space-y-4">
             {Object.keys(draftTargets).length === 0 && (
               <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl text-slate-500">
                 <p className="font-semibold text-slate-700">No active targets configured.</p>
                 <p className="text-xs mt-1">
-                  Click "+ Add Group" below or "Reset Defaults" to restore initial target categories.
+                  Click "+ Add Series Target" to select from the Master Series catalog or "Reset Defaults".
                 </p>
               </div>
             )}
 
-            {Object.entries(draftTargets).map(([groupName, targetVal], groupIdx) => {
+            {Object.entries(draftTargets).map(([groupName, targetVal]) => {
               const sold = soldByModel[groupName] || 0;
               const remaining = Math.max(0, targetVal - sold);
               const pct = targetVal > 0 ? (sold / targetVal) * 100 : 0;
-
               const selectedUnits = draftVariants[groupName] || [];
               const selectedKeys = new Set(selectedUnits.map(nk));
-
-              const isCatalogOpen = openCatalogs[groupName] ?? true;
+              const isCatalogOpen = openCatalogs[groupName] ?? false;
               const searchQuery = searchQueries[groupName] || '';
               const queryNormalized = nk(searchQuery);
 
-              const currentMode = groupViewMode[groupName] || 'catalog';
-              const displayTitle = getSeriesDisplayTitle(groupName);
+              // Catalog products belonging to this series that are not yet added
+              const upperGroup = groupName.toUpperCase();
+              const availableCatalogSkus = MASTER_PRODUCTS.filter(
+                (p) =>
+                  (p.series.toUpperCase() === upperGroup ||
+                    p.series.toUpperCase().includes(upperGroup) ||
+                    upperGroup.includes(p.series.toUpperCase())) &&
+                  isHardwareUnitItem(p.series, p.productName) &&
+                  !selectedKeys.has(nk(p.productName))
+              ).map((p) => p.productName);
 
               return (
                 <div
@@ -526,25 +601,19 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
                   className="rounded-xl border border-slate-300 bg-white shadow-2xs overflow-hidden"
                 >
                   {/* Top Bar: Group Name + Target Stepper + Delete */}
-                  <div className="px-4 py-3 bg-slate-100/90 border-b border-slate-300 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-slate-900 text-sm tracking-wide font-mono uppercase">
-                          {displayTitle}
+                        <span className="font-black text-slate-900 text-sm tracking-wide uppercase font-mono">
+                          {groupName}
                         </span>
-                        {groupName !== displayTitle && (
-                          <span className="text-[10px] text-slate-500 font-semibold">
-                            ({groupName})
-                          </span>
-                        )}
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                          {selectedUnits.length} units selected
+                          {selectedUnits.length} subvariants active
                         </span>
                       </div>
-
                       <div className="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
                         <span>
-                          MTD Sold: <strong className="text-slate-800">{sold}</strong> units
+                          Current Month Sold: <strong className="text-slate-900">{sold}</strong> units
                         </span>
                         <span>·</span>
                         <span
@@ -568,11 +637,10 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
                           type="button"
                           onClick={() => handleStep(groupName, -1)}
                           className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer"
-                          title="Decrease quota by 1"
+                          title="Decrease quota"
                         >
                           -
                         </button>
-
                         <input
                           type="number"
                           min={0}
@@ -583,23 +651,21 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
                           className="w-12 px-1 py-0.5 bg-transparent text-center font-black text-slate-900 text-xs focus:outline-hidden"
                           title="Monthly Target Quota"
                         />
-
                         <button
                           type="button"
                           onClick={() => handleStep(groupName, 1)}
                           className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors cursor-pointer"
-                          title="Increase quota by 1"
+                          title="Increase quota"
                         >
                           +
                         </button>
                       </div>
 
-                      {/* Remove Group Button (matching data-mr in HTML) */}
                       <button
                         type="button"
                         onClick={() => handleDeleteGroup(groupName)}
-                        className="px-2 py-1.5 rounded-lg text-rose-600 hover:text-white hover:bg-rose-600 bg-white border border-rose-200 transition-all cursor-pointer shadow-2xs font-bold text-xs flex items-center gap-1"
-                        title={`Remove ${groupName} target group`}
+                        className="px-2.5 py-1.5 rounded-lg text-rose-600 hover:text-white hover:bg-rose-600 bg-white border border-rose-200 transition-all cursor-pointer shadow-2xs font-bold text-xs flex items-center gap-1"
+                        title={`Remove ${groupName} target`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Remove</span>
@@ -607,48 +673,144 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
                     </div>
                   </div>
 
-                  {/* CATALOG ACCORDION TRIGGER (MATCHING HTML: <summary class="mut">Catalog: X units selected (checkmark to select)</summary>) */}
-                  <div className="border-t border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleCatalogDrawer(groupName)}
-                      className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-blue-50/60 border-b border-slate-200 transition-colors text-left cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-blue-600 shrink-0" />
-                        <span className="text-xs font-bold text-slate-800">
-                          Catalog:{' '}
-                          <span className="text-blue-700 font-extrabold">
-                            {selectedUnits.length} units selected
-                          </span>{' '}
-                          <span className="text-slate-500 font-normal">
-                            (checkmark to select)
-                          </span>
+                  {/* SUBVARIANT MANAGEMENT (OPTION TO ADD A SUBVARIANT - NO SUGGESTIONS) */}
+                  <div className="p-4 space-y-3 bg-white">
+                    {/* Add Subvariant Form */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Plus className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Add Subvariant</span>
+                        </label>
+                        <span className="text-[10px] text-slate-500">
+                          Type custom variant name or select catalog SKU
                         </span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
-                          {isCatalogOpen ? (
-                            <>
-                              <ChevronUp className="w-3.5 h-3.5" />
-                              <span>Collapse Catalog</span>
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="w-3.5 h-3.5" />
-                              <span>Open Catalog</span>
-                            </>
-                          )}
-                        </span>
-                      </div>
-                    </button>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          placeholder="Type subvariant name (e.g. Fly More Combo, 256GB)..."
+                          value={newSubvariantInputs[groupName] || ''}
+                          onChange={(e) =>
+                            setNewSubvariantInputs((prev) => ({
+                              ...prev,
+                              [groupName]: e.target.value,
+                            }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSubvariant(groupName);
+                            }
+                          }}
+                          className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                        />
 
-                    {/* EXPANDABLE CATALOG ACCORDION CONTENT */}
-                    {isCatalogOpen && (
-                      <div className="bg-white p-3 sm:p-4 space-y-3">
-                        {/* Search Bar + Quick Filter (matching data-ms in HTML) */}
-                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-                          <div className="relative flex-1 min-w-[200px]">
+                        {availableCatalogSkus.length > 0 && (
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                setNewSubvariantInputs((prev) => ({
+                                  ...prev,
+                                  [groupName]: e.target.value,
+                                }));
+                              }
+                            }}
+                            value=""
+                            className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-700 font-medium focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                          >
+                            <option value="">Or select catalog SKU ({availableCatalogSkus.length})...</option>
+                            {availableCatalogSkus.map((sku) => (
+                              <option key={sku} value={sku}>
+                                {sku}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddSubvariant(groupName)}
+                          disabled={!newSubvariantInputs[groupName]?.trim()}
+                          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+                        >
+                          + Add Subvariant
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Active Subvariants List with Checkbox Toggle & Delete */}
+                    <div>
+                      <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1.5 flex items-center justify-between">
+                        <span>Active Subvariants in Quota ({selectedUnits.length}):</span>
+                        <span className="text-[10px] text-slate-400 font-normal">
+                          Check to include in target quota · Click ✕ to remove
+                        </span>
+                      </div>
+
+                      {selectedUnits.length === 0 ? (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
+                          No subvariants added yet. Use "Add Subvariant" above or open the Catalog below.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {selectedUnits.map((uName) => {
+                            const stockInfo = allStockSubvariants.find(
+                              (s) => nk(s.productName) === nk(uName)
+                            );
+                            return (
+                              <div
+                                key={uName}
+                                className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors"
+                              >
+                                <label className="flex items-center gap-2 cursor-pointer min-w-0 flex-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={true}
+                                    onChange={() => handleToggleUnit(groupName, uName)}
+                                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                  />
+                                  <span className="text-xs font-semibold text-slate-800 truncate" title={uName}>
+                                    {uName}
+                                  </span>
+                                  {stockInfo && (
+                                    <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                                      {formatCurrency(stockInfo.price)}
+                                    </span>
+                                  )}
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteSubvariant(groupName, uName)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors ml-2 cursor-pointer"
+                                  title={`Remove ${uName}`}
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Expandable Catalog Accordion for Complete Stock Exploration */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCatalogDrawer(groupName)}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>
+                          {isCatalogOpen ? 'Hide Master Catalog Browser' : 'Browse All Master Catalog SKUs'}
+                        </span>
+                        {isCatalogOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+
+                      {isCatalogOpen && (
+                        <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                          <div className="relative">
                             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                               type="text"
@@ -659,7 +821,7 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
                                   [groupName]: e.target.value,
                                 }))
                               }
-                              placeholder="Search series or product (e.g. Action 6, Pocket 4, Mini 5, Combo)..."
+                              placeholder="Search master catalog products..."
                               className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 font-medium focus:outline-hidden"
                             />
                             {searchQuery && (
@@ -678,324 +840,143 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
                             )}
                           </div>
 
-                          {/* Quick Select Buttons */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                // Select all matching units
-                                const allFiltered = allStockSubvariants
-                                  .filter((it) => {
-                                    if (!queryNormalized) return true;
-                                    return (
-                                      nk(it.seriesName).includes(queryNormalized) ||
-                                      nk(it.productName).includes(queryNormalized)
-                                    );
-                                  })
-                                  .map((it) => it.productName);
+                          <div className="border border-slate-200 rounded-xl max-h-60 overflow-y-auto divide-y divide-slate-200 bg-white">
+                            {allSeriesNames
+                              .map((serName) => {
+                                const allUnitsInSeries = stockBySeries.get(serName) || [];
+                                const visibleUnits = queryNormalized
+                                  ? allUnitsInSeries.filter(
+                                      (u) =>
+                                        nk(u.productName).includes(queryNormalized) ||
+                                        nk(serName).includes(queryNormalized)
+                                    )
+                                  : allUnitsInSeries;
+                                if (visibleUnits.length === 0) return null;
 
-                                setDraftVariants((prev) => {
-                                  const cur = prev[groupName] || [];
-                                  const merged = Array.from(new Set([...cur, ...allFiltered]));
-                                  return { ...prev, [groupName]: merged };
-                                });
-                              }}
-                              className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                              title="Select all units currently visible"
-                            >
-                              Select All
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDraftVariants((prev) => ({
-                                  ...prev,
-                                  [groupName]: [],
-                                }));
-                              }}
-                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-                              title="Deselect all units in this group"
-                            >
-                              Clear
-                            </button>
-                          </div>
-                        </div>
+                                const selectedCountInSeries = allUnitsInSeries.filter((u) =>
+                                  selectedKeys.has(nk(u.productName))
+                                ).length;
+                                const isAllSelected =
+                                  allUnitsInSeries.length > 0 &&
+                                  selectedCountInSeries === allUnitsInSeries.length;
+                                const isPartial = selectedCountInSeries > 0 && !isAllSelected;
+                                const isSeriesOpen =
+                                  openSeriesMap[`${groupName}|${serName}`] ||
+                                  Boolean(queryNormalized);
 
-                        {/* Hierarchical Series Accordion Tree (matching details data-sd in HTML) */}
-                        <div className="border border-slate-200 rounded-xl max-h-80 overflow-y-auto divide-y divide-slate-200">
-                          {allSeriesNames
-                            .map((serName) => {
-                              const allUnitsInSeries = stockBySeries.get(serName) || [];
-                              // Filter by search query if present
-                              const visibleUnits = queryNormalized
-                                ? allUnitsInSeries.filter(
-                                    (u) =>
-                                      nk(u.productName).includes(queryNormalized) ||
-                                      nk(serName).includes(queryNormalized)
-                                  )
-                                : allUnitsInSeries;
-
-                              if (visibleUnits.length === 0) return null;
-
-                              const selectedCountInSeries = allUnitsInSeries.filter((u) =>
-                                selectedKeys.has(nk(u.productName))
-                              ).length;
-                              const isAllSelected =
-                                allUnitsInSeries.length > 0 &&
-                                selectedCountInSeries === allUnitsInSeries.length;
-                              const isPartial =
-                                selectedCountInSeries > 0 && !isAllSelected;
-
-                              const isSeriesOpen =
-                                openSeriesMap[`${groupName}|${serName}`] ||
-                                !!queryNormalized;
-
-                              return (
-                                <div key={serName} className="bg-white">
-                                  {/* Series Summary Header (matching summary in HTML) */}
-                                  <div className="flex items-center justify-between px-3.5 py-2 bg-slate-50/90 hover:bg-slate-100/80 transition-colors select-none">
-                                    <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
-                                      <input
-                                        type="checkbox"
-                                        checked={isAllSelected}
-                                        ref={(el) => {
-                                          if (el) el.indeterminate = isPartial;
-                                        }}
-                                        onChange={(e) =>
-                                          handleToggleWholeSeries(
-                                            groupName,
-                                            serName,
-                                            e.target.checked
-                                          )
-                                        }
-                                        title="Select the whole series"
-                                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
-                                      />
-                                      <span className="font-bold text-xs text-slate-900 font-mono tracking-wide">
-                                        {serName}
-                                      </span>
-                                      <span className="text-[10px] font-semibold text-slate-500">
-                                        {selectedCountInSeries}/{allUnitsInSeries.length} selected
-                                      </span>
-                                    </label>
-
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleToggleSeriesAccordion(groupName, serName)
-                                      }
-                                      className="p-1 text-slate-400 hover:text-slate-700 rounded cursor-pointer"
-                                      title={isSeriesOpen ? 'Collapse series' : 'Expand series'}
-                                    >
-                                      {isSeriesOpen ? (
-                                        <ChevronUp className="w-3.5 h-3.5" />
-                                      ) : (
-                                        <ChevronDown className="w-3.5 h-3.5" />
-                                      )}
-                                    </button>
-                                  </div>
-
-                                  {/* Individual Unit Items (matching label.t in HTML) */}
-                                  {isSeriesOpen && (
-                                    <div className="divide-y divide-slate-100 bg-white">
-                                      {visibleUnits.map((unit) => {
-                                        const isChecked = selectedKeys.has(
-                                          nk(unit.productName)
-                                        );
-                                        return (
-                                          <label
-                                            key={unit.productName}
-                                            onClick={(e) => {
-                                              e.preventDefault();
-                                              handleToggleUnit(
-                                                groupName,
-                                                unit.productName
-                                              );
-                                            }}
-                                            className={`flex items-center justify-between py-2 px-3.5 pl-9 cursor-pointer transition-colors select-none ${
-                                              isChecked
-                                                ? 'bg-blue-50/40 hover:bg-blue-50/70 text-slate-900'
-                                                : 'hover:bg-slate-50 text-slate-500'
-                                            }`}
-                                          >
-                                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                                              <input
-                                                type="checkbox"
-                                                checked={isChecked}
-                                                onChange={() => {}} // Handled by row click
-                                                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
-                                              />
-                                              <span
-                                                className={`text-xs truncate ${
-                                                  isChecked
-                                                    ? 'font-bold text-slate-900'
-                                                    : 'text-slate-600'
-                                                }`}
-                                              >
-                                                {unit.productName}
-                                              </span>
+                                return (
+                                  <div key={serName} className="text-xs">
+                                    <div className="flex items-center justify-between px-3 py-2 bg-slate-50/80 hover:bg-slate-100 transition-colors">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleToggleSeriesFolder(groupName, serName)
+                                          }
+                                          className="text-slate-500 hover:text-slate-800 p-0.5 cursor-pointer"
+                                        >
+                                          {isSeriesOpen ? (
+                                            <ChevronDown className="w-3.5 h-3.5" />
+                                          ) : (
+                                            <ChevronUp className="w-3.5 h-3.5 rotate-90" />
+                                          )}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleToggleSeriesInGroup(groupName, serName)
+                                          }
+                                          className="flex items-center gap-1.5 text-left cursor-pointer truncate font-bold text-slate-800"
+                                        >
+                                          {isAllSelected ? (
+                                            <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
+                                          ) : isPartial ? (
+                                            <div className="w-4 h-4 rounded bg-blue-100 border border-blue-500 flex items-center justify-center shrink-0">
+                                              <div className="w-2 h-2 bg-blue-600 rounded-xs" />
                                             </div>
+                                          ) : (
+                                            <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                                          )}
+                                          <span className="truncate">{serName}</span>
+                                        </button>
+                                      </div>
+                                      <span className="text-[10px] text-slate-500 font-mono">
+                                        {selectedCountInSeries}/{allUnitsInSeries.length}
+                                      </span>
+                                    </div>
 
-                                            <div className="flex items-center gap-2.5 shrink-0 font-mono text-xs">
-                                              <span
-                                                className={`font-semibold ${
-                                                  isChecked
-                                                    ? 'text-slate-800'
-                                                    : 'text-slate-400'
-                                                }`}
-                                              >
+                                    {isSeriesOpen && (
+                                      <div className="px-3 py-1.5 divide-y divide-slate-100 pl-8 bg-white">
+                                        {visibleUnits.map((unit) => {
+                                          const checked = selectedKeys.has(nk(unit.productName));
+                                          return (
+                                            <label
+                                              key={unit.productName}
+                                              className="flex items-center justify-between py-1.5 hover:bg-slate-50 px-2 rounded cursor-pointer"
+                                            >
+                                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={checked}
+                                                  onChange={() =>
+                                                    handleToggleUnit(groupName, unit.productName)
+                                                  }
+                                                  className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                />
+                                                <span className="truncate text-slate-700">
+                                                  {unit.productName}
+                                                </span>
+                                              </div>
+                                              <span className="text-[10px] font-mono text-slate-500">
                                                 {formatCurrency(unit.price)}
                                               </span>
-                                              <span
-                                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-sans ${
-                                                  unit.inStockCount > 0
-                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                    : 'bg-slate-100 text-slate-500'
-                                                }`}
-                                              >
-                                                {unit.inStockCount > 0
-                                                  ? `${unit.inStockCount} in stock`
-                                                  : '0 stock'}
-                                              </span>
-                                            </div>
-                                          </label>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })
-                            .filter(Boolean)}
-                        </div>
-
-                        {/* Currently Selected Units Pills Preview */}
-                        {selectedUnits.length > 0 && (
-                          <div className="pt-2 border-t border-slate-100">
-                            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center justify-between">
-                              <span>
-                                Active combos included in quota ({selectedUnits.length}):
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-normal">
-                                Tap chip to remove
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5 max-h-24 overflow-y-auto">
-                              {selectedUnits.map((uName) => {
-                                const stockInfo = allStockSubvariants.find(
-                                  (s) => nk(s.productName) === nk(uName)
-                                );
-                                return (
-                                  <span
-                                    key={uName}
-                                    onClick={() => handleToggleUnit(groupName, uName)}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-900 border border-blue-200 hover:bg-rose-50 hover:text-rose-800 hover:border-rose-300 transition-colors cursor-pointer group shadow-2xs"
-                                    title={`Click to remove ${uName} from ${groupName}`}
-                                  >
-                                    <Check className="w-3 h-3 text-blue-600 group-hover:hidden" />
-                                    <X className="w-3 h-3 text-rose-600 hidden group-hover:inline" />
-                                    <span>{uName}</span>
-                                    {stockInfo && (
-                                      <span className="text-[10px] font-mono text-blue-700/80">
-                                        ({formatCurrency(stockInfo.price)})
-                                      </span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
                                     )}
-                                  </span>
+                                  </div>
                                 );
-                              })}
-                            </div>
+                              })
+                              .filter(Boolean)}
                           </div>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {/* Add New Target Group Form (matching #mpa in HTML) */}
-          {isAddingNew ? (
-            <form
-              onSubmit={handleAddNewGroup}
-              className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-3 animate-in fade-in duration-150"
-            >
-              <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-blue-600" />
-                <span>Add New Target Group</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  placeholder="Group Name (e.g. OSMO 360 SERIES, AIR 3S)"
-                  value={newModelName}
-                  onChange={(e) => setNewModelName(e.target.value)}
-                  className="sm:col-span-2 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-hidden font-medium"
-                  autoFocus
-                />
-                <input
-                  type="number"
-                  min={1}
-                  placeholder="Target Units"
-                  value={newModelTarget}
-                  onChange={(e) => setNewModelTarget(Number(e.target.value) || 1)}
-                  className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-hidden font-bold"
-                />
-              </div>
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddingNew(false)}
-                  className="px-3 py-1 text-slate-500 hover:text-slate-700 font-medium text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!newModelName.trim()}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg font-bold text-xs cursor-pointer transition-colors shadow-2xs"
-                >
-                  Confirm Add Group
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsAddingNew(true)}
-              className="w-full py-2.5 border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 rounded-xl text-xs font-bold text-slate-600 hover:text-blue-700 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Add Target Group</span>
-            </button>
-          )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-5 sm:px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
             onClick={handleReset}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+            title="Reset to Master Series defaults"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Defaults</span>
+            <span>Reset Master Defaults</span>
           </button>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-slate-300 rounded-xl font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer text-xs"
+              className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all cursor-pointer shadow-md active:scale-98 text-xs"
+              className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-98"
             >
-              Save Targets & Subvariants
+              <Check className="w-4 h-4" />
+              <span>Save & Apply Targets</span>
             </button>
           </div>
         </div>

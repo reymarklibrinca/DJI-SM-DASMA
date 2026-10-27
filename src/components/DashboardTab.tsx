@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
+  Sliders,
   TrendingUp,
   TrendingDown,
   ShoppingBag,
@@ -58,6 +59,7 @@ import {
 } from '../utils/calculations';
 import { MainPushBreakdownModal } from './MainPushBreakdownModal';
 import { ImportMainPushTargetsModal } from './ImportMainPushTargetsModal';
+import { EditMainPushTargetsModal } from './EditMainPushTargetsModal';
 
 export interface InventoryWatchItem {
   id: string;
@@ -370,6 +372,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 }) => {
   const [isMainPushModalOpen, setIsMainPushModalOpen] = useState(false);
   const [isImportTargetsOpen, setIsImportTargetsOpen] = useState(false);
+  const [isEditTargetsOpen, setIsEditTargetsOpen] = useState(false);
   const [mainPushCardMode, setMainPushCardMode] = useState<'store' | 'promoters'>('store');
 
   // Mode: 'inventory' (Inventory Watch Only) or 'weather' (Flight Weather & Flyability)
@@ -628,10 +631,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const prevCareAttach = calculateAttachRate(prevAgg.care, prevAgg.hw);
   const careDelta = currentCareAttach - prevCareAttach;
 
-  // Main Push calculation for October (Month 9) with editable targets and variant selection
+  // Main Push calculation dynamically aligned with current sales of current month
+  const currentMonthNum = dayOffsetToDate(endOffset).getMonth();
+  const currentYear = dayOffsetToDate(endOffset).getFullYear();
   const pushData = useMemo(() => {
-    return calculateMainPushBreakdown(sales, staffList, 9, mainPushTargets, mainPushVariants);
-  }, [sales, staffList, mainPushTargets, mainPushVariants]);
+    return calculateMainPushBreakdown(sales, staffList, currentMonthNum, mainPushTargets, mainPushVariants, currentYear);
+  }, [sales, staffList, currentMonthNum, currentYear, mainPushTargets, mainPushVariants]);
 
   const soldByModelMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -999,6 +1004,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
             {/* Quick Mode Toggle & Import Targets (Excel Template) Action */}
             <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+              {onUpdateMainPushTargets && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditTargetsOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer shadow-2xs"
+                  title="Edit Main Push Targets and Subvariants"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Edit Targets</span>
+                </button>
+              )}
               {onUpdateMainPushTargets && (
                 <button
                   type="button"
@@ -1868,6 +1884,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         onResetMainPushTargets={onResetMainPushTargets}
         onDeleteTarget={onDeleteMainPushTarget}
       />
+
+      {/* Edit Main Push Targets & Subvariants Modal */}
+      {onUpdateMainPushTargets && (
+        <EditMainPushTargetsModal
+          isOpen={isEditTargetsOpen}
+          onClose={() => setIsEditTargetsOpen(false)}
+          currentTargets={mainPushTargets || {}}
+          currentVariants={mainPushVariants || {}}
+          onSaveTargets={onUpdateMainPushTargets}
+          onResetTargets={onResetMainPushTargets}
+          onDeleteTarget={onDeleteMainPushTarget}
+          soldByModel={soldByModelMap}
+          activeMonthName={`${monthData[monthData.length - 1]?.name || 'Current Month'} ${currentYear}`}
+        />
+      )}
 
       {/* Import Main Push Targets Modal (Excel Template) */}
       {onUpdateMainPushTargets && (

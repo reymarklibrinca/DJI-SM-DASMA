@@ -460,12 +460,12 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
         'Promoter',
         'Lead Type',
       ],
-      ['6941565988113', '9KRXP3P00BV881', 'Osmo Action 6 Adventure Combo', 31390, 'ACTION 6', 'SOLD', '2026-10-26', 'Christian', 'Walk-in'],
-      ['6941565984429', 'ANGVP1J0020KTA', 'Osmo Pocket 4 Standard Combo', 27990, 'POCKET 4P Standard', 'SOLD', '2026-10-26', 'Donna', 'Revisit'],
-      ['6941565982104', '1581F9DEC25AL029CX61', 'DJI Mini 5 Pro', 40690, 'MINI 5 PRO SERIES', 'SOLD', '2026-10-26', 'Jobert', 'Online'],
-      ['6941565981152', '1581FA6QC25B700CZ2QJ', 'DJI NEO 2', 12390, 'DJI NEO 2', 'SOLD', '2026-10-26', 'Christian', 'Walk-in'],
-      ['6941565979814', '1581FB34C261T00396Z8', 'DJI Lito X1', 21690, 'LITO X1', 'SOLD', '2026-10-26', 'Donna', 'Walk-in'],
-      ['6941565983712', '1581F895C262401709R5', 'DJI Air 3S Fly More Combo (DJI RC-N3)', 72490, 'AIR SERIES', 'SOLD', '2026-10-26', 'Christian', 'Walk-in'],
+      ['6941565988113', '9KRXP3P00BV881', 'Osmo Action 6 Adventure Combo', 28990, 'OSMO ACTION 6 SERIES', 'SOLD', '2026-10-26', 'Christian', 'Walk-in'],
+      ['6941565984429', 'ANGVP1J0020KTA', 'Osmo Pocket 4 Standard Combo', 28990, 'OSMO POCKET 4 SERIES', 'SOLD', '2026-10-26', 'Donna', 'Revisit'],
+      ['6941565982104', '1581F9DEC25AL029CX61', 'DJI Mini 5 Pro', 38990, 'MINI 5 PRO SERIES', 'SOLD', '2026-10-26', 'Jobert', 'Online'],
+      ['6941565981152', '1581FA6QC25B700CZ2QJ', 'DJI NEO 2', 11990, 'NEO 2 SERIES', 'SOLD', '2026-10-26', 'Christian', 'Walk-in'],
+      ['6941565979814', '1581FB34C261T00396Z8', 'DJI Lito X1', 19990, 'LITO X1 SERIES', 'SOLD', '2026-10-26', 'Donna', 'Walk-in'],
+      ['6941565983712', '1581F895C262401709R5', 'DJI Air 3S Fly More Combo (DJI RC-N3)', 69990, 'AIR 3S SERIES', 'SOLD', '2026-10-26', 'Christian', 'Walk-in'],
     ]);
 
     ws['!cols'] = [

@@ -78,7 +78,10 @@ export const CoachTab: React.FC<CoachTabProps> = ({
       (p) =>
         p.prevSa > 0 &&
         p.idx !== CARE_INDEX &&
-        p.idx !== ACCESSORIES_INDEX
+        p.idx !== ACCESSORIES_INDEX &&
+        !p.name.includes('ACCESSOR') &&
+        !p.name.includes('CARE REFRESH') &&
+        !p.name.includes('SERVICES')
     )
     .sort((a, b) => b.change - a.change);
 

@@ -20,11 +20,11 @@ import {
 const STORAGE_KEY = 'oh2';
 
 export const DEFAULT_MAIN_PUSH_TARGETS: Record<string, number> = {
-  'Mini 5 Pro': 9,
-  'NEO Series': 18,
-  'Lito X1': 15,
-  'OA Series': 54,
-  'Pocket Series': 45,
+  'OSMO ACTION 6 SERIES': 54,
+  'OSMO POCKET 4 SERIES': 45,
+  'NEO 2 SERIES': 18,
+  'LITO X1 SERIES': 15,
+  'MINI 5 PRO SERIES': 9,
 };
 
 const defaultLocalState: LocalStorageState = {
@@ -258,7 +258,10 @@ export function useDjiStore() {
         }
 
         const isPlain =
-          unit && (unit[3] === 'ACCESSORIES' || unit[3] === 'CARE REFRESH');
+          unit &&
+          (unit[3].includes('ACCESSOR') ||
+            unit[3].includes('CARE REFRESH') ||
+            unit[3].includes('SERVICES'));
 
         if (!isPlain) {
           // Check static sold
@@ -349,7 +352,11 @@ export function useDjiStore() {
             }
           }
 
-          const isPlain = unit && (unit[3] === 'ACCESSORIES' || unit[3] === 'CARE REFRESH');
+          const isPlain =
+            unit &&
+            (unit[3].includes('ACCESSOR') ||
+              unit[3].includes('CARE REFRESH') ||
+              unit[3].includes('SERVICES'));
 
           if (!isPlain) {
             const staticSold = DJI_DATA.sold[cleanSn];

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
+  Sliders,
   X,
   Target,
   Users,
@@ -28,8 +29,12 @@ import {
   formatNumber,
   formatDate,
   categorizeMainPushModel,
+  dayOffsetToDate,
+  getMonthName,
+  getMonthKey,
 } from '../utils/calculations';
 import { ImportMainPushTargetsModal } from './ImportMainPushTargetsModal';
+import { EditMainPushTargetsModal } from './EditMainPushTargetsModal';
 
 interface MainPushBreakdownModalProps {
   isOpen: boolean;
@@ -64,15 +69,20 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
   const [isImportTargetsOpen, setIsImportTargetsOpen] = useState(false);
+  const [isEditTargetsOpen, setIsEditTargetsOpen] = useState(false);
 
-  // Month = 9 is October (0-indexed)
+  // Current active month and year derived dynamically from endOffset
+  const activeMonthNum = dayOffsetToDate(endOffset).getMonth();
+  const activeYearNum = dayOffsetToDate(endOffset).getFullYear();
+  const activeMonthName = getMonthName(getMonthKey(endOffset));
+
   const pushData = useMemo(() => {
-    return calculateMainPushBreakdown(sales, staffList, 9, mainPushTargets, mainPushVariants);
-  }, [sales, staffList, mainPushTargets, mainPushVariants]);
+    return calculateMainPushBreakdown(sales, staffList, activeMonthNum, mainPushTargets, mainPushVariants, activeYearNum);
+  }, [sales, staffList, activeMonthNum, activeYearNum, mainPushTargets, mainPushVariants]);
 
   const promoterPerf = useMemo(() => {
-    return calculatePromoterMonthPerformance(sales, staffList, promoterMonthlyTargets, 9, endOffset, mainPushTargets, mainPushVariants);
-  }, [sales, staffList, promoterMonthlyTargets, endOffset, mainPushTargets, mainPushVariants]);
+    return calculatePromoterMonthPerformance(sales, staffList, promoterMonthlyTargets, activeMonthNum, endOffset, mainPushTargets, mainPushVariants);
+  }, [sales, staffList, promoterMonthlyTargets, activeMonthNum, endOffset, mainPushTargets, mainPushVariants, activeYearNum]);
 
   const soldByModelMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -82,13 +92,13 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
     return map;
   }, [pushData]);
 
-  // October Sales matching filters for the Units tab
+  // Current Month Sales matching filters for the Units tab
   const octoberMainPushSales = useMemo(() => {
     return sales
       .map((s, idx) => ({ s, originalIdx: idx }))
       .filter(({ s }) => {
-        // Month check: day >= 61 is October
-        if (s[0] < 61) return false;
+        const d = dayOffsetToDate(s[0]);
+        if (d.getMonth() !== activeMonthNum || d.getFullYear() !== activeYearNum) return false;
 
         const modelCat = categorizeMainPushModel(s);
         if (!modelCat) return false;
@@ -121,7 +131,7 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
   // Copy Executive Report text
   const handleCopyReport = () => {
     const lines = [
-      `📊 DJI STORE SM DASMARIÑAS | OCTOBER 2026 MAIN PUSH & PROMOTER PERFORMANCE`,
+      `📊 DJI STORE SM DASMARIÑAS | ${activeMonthName.toUpperCase()} ${activeYearNum} MAIN PUSH & PROMOTER PERFORMANCE`,
       `========================================================================`,
       `Store Quota: ${formatCurrency(storeMtdRevenue)} / ${formatCurrency(storeQuotaTarget)} (${storeQuotaPct.toFixed(1)}%)`,
       `Store Remaining Revenue: ${formatCurrency(storeRemainingRevenue)} (${daysRemaining} days left · Required: ${formatCurrency(storeRemainingRevenue / daysRemaining)}/day)`,
@@ -175,7 +185,7 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
                 Store Targets & Quota
               </span>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Current Month: October 2026
+                Current Month: ${activeMonthName} ${activeYearNum}
               </span>
               <span className="text-xs text-slate-400">DJI SM Dasmariñas</span>
             </div>
@@ -189,6 +199,17 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onUpdateMainPushTargets && (
+              <button
+                type="button"
+                onClick={() => setIsEditTargetsOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-xs cursor-pointer"
+                title="Edit Main Push Targets and Subvariants"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Edit Targets</span>
+              </button>
+            )}
             {onUpdateMainPushTargets && (
               <button
                 type="button"

@@ -150,7 +150,10 @@ export const BulkQuickLogModal: React.FC<BulkQuickLogModalProps> = ({
       let soldDetail = '';
 
       if (unit) {
-        const isPlain = unit[3] === 'ACCESSORIES' || unit[3] === 'CARE REFRESH';
+        const isPlain =
+          unit[3].includes('ACCESSOR') ||
+          unit[3].includes('CARE REFRESH') ||
+          unit[3].includes('SERVICES');
         if (!isPlain) {
           const staticSold = DJI_DATA.sold[clean];
           const localSold = localSales.find((s) => s[6]?.toUpperCase() === clean);
@@ -171,7 +174,7 @@ export const BulkQuickLogModal: React.FC<BulkQuickLogModalProps> = ({
 
       // Series & Product resolution
       let productName = 'Unknown Product';
-      let seriesName = 'ACCESSORIES';
+      let seriesName = 'OTHERS';
       let defaultPrice = 0;
 
       if (unit) {
@@ -181,7 +184,7 @@ export const BulkQuickLogModal: React.FC<BulkQuickLogModalProps> = ({
       } else {
         // Fallback or guess
         productName = token;
-        seriesName = 'ACCESSORIES';
+        seriesName = 'OTHERS';
       }
 
       let seriesIndex = DJI_DATA.ser.indexOf(seriesName);

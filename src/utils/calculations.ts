@@ -46,8 +46,12 @@ export function calculatePercentChange(current: number, prev: number): number {
   return ((current - prev) / prev) * 100;
 }
 
-export const CARE_INDEX = DJI_DATA.ser.indexOf('CARE REFRESH');
-export const ACCESSORIES_INDEX = DJI_DATA.ser.indexOf('ACCESSORIES');
+export const CARE_INDEX = DJI_DATA.ser.findIndex(
+  (s) => s === 'DJI CARE REFRESH SERVICES' || s.includes('CARE REFRESH')
+);
+export const ACCESSORIES_INDEX = DJI_DATA.ser.findIndex(
+  (s) => s === 'ACCESSORIES' || s.includes('ACCESSORIES')
+);
 
 export function aggregateSales(
   sales: SaleTuple[],
@@ -80,8 +84,10 @@ export function aggregateSales(
 
     const price = s[3];
     const units = s[4] ?? 1;
-    const isCare = s[2] === CARE_INDEX;
-    const isHardware = !isCare && s[2] !== ACCESSORIES_INDEX;
+    const serName = DJI_DATA.ser[s[2]] || '';
+    const isCare = s[2] === CARE_INDEX || serName.includes('CARE REFRESH') || serName.includes('SERVICES');
+    const isAccessories = serName.includes('ACCESSOR') || s[2] === ACCESSORIES_INDEX;
+    const isHardware = !isCare && !isAccessories;
 
     o.sa += price;
     o.un += units;
@@ -568,138 +574,215 @@ export function getStockSubvariantsForTarget(targetName: string): StockSubvarian
 }
 
 export const KNOWN_SERIES_VARIANTS: Record<string, SeriesVariantInfo[]> = {
-  'OA Series': [
-    { label: 'Osmo Action 6 Adventure Combo', rawSerName: 'ACTION 6' },
-    { label: 'Osmo Action 6 Street Photography Gift Set', rawSerName: 'ACTION 6' },
-    { label: 'Osmo Action 6 Standard Combo', rawSerName: 'ACTION 6' },
-    { label: 'Osmo Action 5 PRO Adventure Combo', rawSerName: 'OSMO ACTION 5 PRO' },
-    { label: 'Osmo Action 5 PRO Standard Combo', rawSerName: 'OSMO ACTION 5 PRO' },
+  'OSMO ACTION 6 SERIES': [
+    { label: 'Osmo Action 6 Adventure Combo', rawSerName: 'OSMO ACTION 6 SERIES' },
+    { label: 'Osmo Action 6 Street Photography Gift Set', rawSerName: 'OSMO ACTION 6 SERIES' },
+    { label: 'Osmo Action 6 Standard Combo', rawSerName: 'OSMO ACTION 6 SERIES' },
+    { label: 'Osmo Action 5 PRO Adventure Combo', rawSerName: 'OSMO ACTION 5 PRO SERIES' },
+    { label: 'Osmo Action 5 PRO Standard Combo', rawSerName: 'OSMO ACTION 5 PRO SERIES' },
     { label: 'Osmo Action 4 Adventure Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
     { label: 'Osmo Action 4 Standard Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
-    { label: 'Action 6', rawSerName: 'ACTION 6' },
-    { label: 'Action 5', rawSerName: 'OSMO ACTION 5 PRO' },
-    { label: 'Action 4', rawSerName: 'OSMO ACTION 4 SERIES' },
   ],
-  'ACTION SERIES': [
-    { label: 'Osmo Action 6 Adventure Combo', rawSerName: 'ACTION 6' },
-    { label: 'Osmo Action 6 Street Photography Gift Set', rawSerName: 'ACTION 6' },
-    { label: 'Osmo Action 6 Standard Combo', rawSerName: 'ACTION 6' },
-    { label: 'Osmo Action 5 PRO Adventure Combo', rawSerName: 'OSMO ACTION 5 PRO' },
-    { label: 'Osmo Action 5 PRO Standard Combo', rawSerName: 'OSMO ACTION 5 PRO' },
+  'OSMO POCKET 4 SERIES': [
+    { label: 'Osmo Pocket 4 Creator Combo', rawSerName: 'OSMO POCKET 4 SERIES' },
+    { label: 'Osmo Pocket 4 Standard Combo', rawSerName: 'OSMO POCKET 4 SERIES' },
+    { label: 'Osmo Pocket 4P Vlog Combo', rawSerName: 'OSMO POCKET 4P SERIES' },
+    { label: 'Osmo Pocket 4P Standard Combo', rawSerName: 'OSMO POCKET 4P SERIES' },
+    { label: 'Osmo Pocket 4P Standard Combo (Pearl White)', rawSerName: 'OSMO POCKET 4P SERIES' },
+    { label: 'Osmo Pocket 3 Creator Combo', rawSerName: 'OSMO POCKET 3 SERIES' },
+    { label: 'Osmo Pocket 3', rawSerName: 'OSMO POCKET 3 SERIES' },
+  ],
+  'NEO 2 SERIES': [
+    { label: 'DJI NEO 2 MOTION FLY MORE COMBO', rawSerName: 'NEO 2 SERIES' },
+    { label: 'DJI NEO 2 FLY MORE COMBO', rawSerName: 'NEO 2 SERIES' },
+    { label: 'DJI Neo 2 Fly More Combo (Drone Only)', rawSerName: 'NEO 2 SERIES' },
+    { label: 'DJI NEO 2', rawSerName: 'NEO 2 SERIES' },
+    { label: 'DJI NEO MOTION FLY MORE COMBO', rawSerName: 'NEO SERIES' },
+    { label: 'DJI NEO FLY MORE COMBO', rawSerName: 'NEO SERIES' },
+    { label: 'DJI NEO', rawSerName: 'NEO SERIES' },
+    { label: 'DJI NEO COMBO (GLOBAL)', rawSerName: 'NEO SERIES' },
+  ],
+  'MINI 5 PRO SERIES': [
+    { label: 'DJI Mini 5 Pro Fly More Combo Plus (DJI RC2)', rawSerName: 'MINI 5 PRO SERIES' },
+    { label: 'DJI Mini 5 Pro Fly More Combo (DJI RC2)', rawSerName: 'MINI 5 PRO SERIES' },
+    { label: 'DJI Mini 5 Pro Fly More Combo (DJI RC-N3)', rawSerName: 'MINI 5 PRO SERIES' },
+    { label: 'DJI Mini 5 Pro', rawSerName: 'MINI 5 PRO SERIES' },
+  ],
+  'LITO X1 SERIES': [
+    { label: 'DJI Lito X1 Fly More Combo Plus (DJI RC 2)', rawSerName: 'LITO X1 SERIES' },
+    { label: 'DJI Lito X1 Fly More Combo (DJI RC 2)', rawSerName: 'LITO X1 SERIES' },
+    { label: 'DJI Lito X1 Fly More Combo (DJI RC-N3)', rawSerName: 'LITO X1 SERIES' },
+    { label: 'DJI Lito X1', rawSerName: 'LITO X1 SERIES' },
+    { label: 'DJI Lito 1 Fly More Combo (DJI RC-N3)', rawSerName: 'LITO 1 SERIES' },
+    { label: 'DJI Lito 1', rawSerName: 'LITO 1 SERIES' },
+  ],
+  'AIR 3S SERIES': [
+    { label: 'DJI Air 3S Fly More Combo (DJI RC 2)', rawSerName: 'AIR 3S SERIES' },
+    { label: 'DJI Air 3S Fly More Combo (DJI RC-N3)', rawSerName: 'AIR 3S SERIES' },
+    { label: 'DJI Air 3S (DJI RC-N3)', rawSerName: 'AIR 3S SERIES' },
+  ],
+  'MAVIC 4 PRO SERIES': [
+    { label: 'DJI Mavic 4 Pro 512GB Greator Combo(DJI RC Pro2)', rawSerName: 'MAVIC 4 PRO SERIES' },
+    { label: 'DJI Mavic 4 Pro Fly More Combo(DJI RC 2)', rawSerName: 'MAVIC 4 PRO SERIES' },
+    { label: 'DJI Mavic 4 Pro', rawSerName: 'MAVIC 4 PRO SERIES' },
+  ],
+  'AVATA 360 SERIES': [
+    { label: 'DJI Avata 360 (DJI RC 2)', rawSerName: 'AVATA 360 SERIES' },
+    { label: 'DJI Avata 360 Fly More Combo (DJI RC 2)', rawSerName: 'AVATA 360 SERIES' },
+    { label: 'DJI Avata 360 Motion Fly More Combo (DJI Goggles N3)', rawSerName: 'AVATA 360 SERIES' },
+  ],
+  'OA Series': [
+    { label: 'Osmo Action 6 Adventure Combo', rawSerName: 'OSMO ACTION 6 SERIES' },
+    { label: 'Osmo Action 6 Street Photography Gift Set', rawSerName: 'OSMO ACTION 6 SERIES' },
+    { label: 'Osmo Action 6 Standard Combo', rawSerName: 'OSMO ACTION 6 SERIES' },
+    { label: 'Osmo Action 5 PRO Adventure Combo', rawSerName: 'OSMO ACTION 5 PRO SERIES' },
+    { label: 'Osmo Action 5 PRO Standard Combo', rawSerName: 'OSMO ACTION 5 PRO SERIES' },
     { label: 'Osmo Action 4 Adventure Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
     { label: 'Osmo Action 4 Standard Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
-    { label: 'Action 6', rawSerName: 'ACTION 6' },
-    { label: 'Action 5', rawSerName: 'OSMO ACTION 5 PRO' },
-    { label: 'Action 4', rawSerName: 'OSMO ACTION 4 SERIES' },
   ],
   'Pocket Series': [
-    { label: 'Osmo Pocket 4 Creator Combo', rawSerName: 'POCKET 4' },
-    { label: 'Osmo Pocket 4 Standard Combo', rawSerName: 'POCKET 4' },
-    { label: 'Osmo Pocket 4P Vlog Combo', rawSerName: 'POCKET 4P' },
-    { label: 'Osmo Pocket 4P Standard Combo', rawSerName: 'POCKET 4P Standard' },
-    { label: 'Osmo Pocket 3 Creator Combo', rawSerName: 'POCKET 3' },
-    { label: 'Osmo Pocket 3', rawSerName: 'POCKET 3' },
-    { label: 'Pocket 4', rawSerName: 'POCKET 4' },
-    { label: 'Pocket 3', rawSerName: 'POCKET 3' },
-  ],
-  'POCKET 4 SERIES': [
-    { label: 'Osmo Pocket 4 Creator Combo', rawSerName: 'POCKET 4' },
-    { label: 'Osmo Pocket 4 Standard Combo', rawSerName: 'POCKET 4' },
-    { label: 'Osmo Pocket 4P Vlog Combo', rawSerName: 'POCKET 4P' },
-    { label: 'Osmo Pocket 4P Standard Combo', rawSerName: 'POCKET 4P Standard' },
-    { label: 'Osmo Pocket 3 Creator Combo', rawSerName: 'POCKET 3' },
-    { label: 'Osmo Pocket 3', rawSerName: 'POCKET 3' },
-    { label: 'Pocket 4', rawSerName: 'POCKET 4' },
-    { label: 'Pocket 3', rawSerName: 'POCKET 3' },
+    { label: 'Osmo Pocket 4 Creator Combo', rawSerName: 'OSMO POCKET 4 SERIES' },
+    { label: 'Osmo Pocket 4 Standard Combo', rawSerName: 'OSMO POCKET 4 SERIES' },
+    { label: 'Osmo Pocket 4P Vlog Combo', rawSerName: 'OSMO POCKET 4P SERIES' },
+    { label: 'Osmo Pocket 4P Standard Combo', rawSerName: 'OSMO POCKET 4P SERIES' },
+    { label: 'Osmo Pocket 4P Standard Combo (Pearl White)', rawSerName: 'OSMO POCKET 4P SERIES' },
+    { label: 'Osmo Pocket 3 Creator Combo', rawSerName: 'OSMO POCKET 3 SERIES' },
+    { label: 'Osmo Pocket 3', rawSerName: 'OSMO POCKET 3 SERIES' },
   ],
   'NEO Series': [
-    { label: 'DJI Neo (GL)', rawSerName: 'DJI NEO 2' },
-    { label: 'DJI Neo Fly More Combo', rawSerName: 'DJI NEO 2' },
-    { label: 'DJI Neo 2', rawSerName: 'DJI NEO 2' },
+    { label: 'DJI NEO 2 MOTION FLY MORE COMBO', rawSerName: 'NEO 2 SERIES' },
+    { label: 'DJI NEO 2 FLY MORE COMBO', rawSerName: 'NEO 2 SERIES' },
+    { label: 'DJI Neo 2 Fly More Combo (Drone Only)', rawSerName: 'NEO 2 SERIES' },
+    { label: 'DJI NEO 2', rawSerName: 'NEO 2 SERIES' },
   ],
   'Mini 5 Pro': [
+    { label: 'DJI Mini 5 Pro Fly More Combo Plus (DJI RC2)', rawSerName: 'MINI 5 PRO SERIES' },
+    { label: 'DJI Mini 5 Pro Fly More Combo (DJI RC2)', rawSerName: 'MINI 5 PRO SERIES' },
+    { label: 'DJI Mini 5 Pro Fly More Combo (DJI RC-N3)', rawSerName: 'MINI 5 PRO SERIES' },
     { label: 'DJI Mini 5 Pro', rawSerName: 'MINI 5 PRO SERIES' },
-    { label: 'DJI Mini 5 Pro Fly More Combo', rawSerName: 'MINI 5 PRO SERIES' },
-    { label: 'DJI Mini 5 Pro Fly More Combo (DJI RC 2)', rawSerName: 'MINI 5 PRO SERIES' },
-    { label: 'Mini 5 Pro', rawSerName: 'MINI 5 PRO SERIES' },
   ],
   'Lito X1': [
-    { label: 'Lito X1', rawSerName: 'LITO X1' },
-    { label: 'Lito 1', rawSerName: 'LITO 1' },
+    { label: 'DJI Lito X1 Fly More Combo Plus (DJI RC 2)', rawSerName: 'LITO X1 SERIES' },
+    { label: 'DJI Lito X1 Fly More Combo (DJI RC 2)', rawSerName: 'LITO X1 SERIES' },
+    { label: 'DJI Lito X1 Fly More Combo (DJI RC-N3)', rawSerName: 'LITO X1 SERIES' },
+    { label: 'DJI Lito X1', rawSerName: 'LITO X1 SERIES' },
+    { label: 'DJI Lito 1 Fly More Combo (DJI RC-N3)', rawSerName: 'LITO 1 SERIES' },
+    { label: 'DJI Lito 1', rawSerName: 'LITO 1 SERIES' },
   ],
 };
 
 export const DEFAULT_MAIN_PUSH_VARIANTS: Record<string, string[]> = {
+  'OSMO ACTION 6 SERIES': [
+    'Osmo Action 6 Adventure Combo',
+    'Osmo Action 6 Street Photography Gift Set',
+    'Osmo Action 6 Standard Combo',
+  ],
+  'OSMO POCKET 4 SERIES': [
+    'Osmo Pocket 4 Creator Combo',
+    'Osmo Pocket 4 Standard Combo',
+    'Osmo Pocket 4P Vlog Combo',
+    'Osmo Pocket 4P Standard Combo',
+    'Osmo Pocket 4P Standard Combo (Pearl White)',
+    'Osmo Pocket 3 Creator Combo',
+    'Osmo Pocket 3',
+  ],
+  'NEO 2 SERIES': [
+    'DJI NEO 2 MOTION FLY MORE COMBO',
+    'DJI NEO 2 FLY MORE COMBO',
+    'DJI Neo 2 Fly More Combo (Drone Only)',
+    'DJI NEO 2',
+    'DJI NEO MOTION FLY MORE COMBO',
+    'DJI NEO FLY MORE COMBO',
+    'DJI NEO',
+    'DJI NEO COMBO (GLOBAL)',
+  ],
+  'MINI 5 PRO SERIES': [
+    'DJI Mini 5 Pro Fly More Combo Plus (DJI RC2)',
+    'DJI Mini 5 Pro Fly More Combo (DJI RC2)',
+    'DJI Mini 5 Pro Fly More Combo (DJI RC-N3)',
+    'DJI Mini 5 Pro',
+  ],
+  'LITO X1 SERIES': [
+    'DJI Lito X1 Fly More Combo Plus (DJI RC 2)',
+    'DJI Lito X1 Fly More Combo (DJI RC 2)',
+    'DJI Lito X1 Fly More Combo (DJI RC-N3)',
+    'DJI Lito X1',
+    'DJI Lito 1 Fly More Combo (DJI RC-N3)',
+    'DJI Lito 1',
+  ],
+  'AIR 3S SERIES': [
+    'DJI Air 3S Fly More Combo (DJI RC 2)',
+    'DJI Air 3S Fly More Combo (DJI RC-N3)',
+    'DJI Air 3S (DJI RC-N3)',
+  ],
+  'MAVIC 4 PRO SERIES': [
+    'DJI Mavic 4 Pro 512GB Greator Combo(DJI RC Pro2)',
+    'DJI Mavic 4 Pro Fly More Combo(DJI RC 2)',
+    'DJI Mavic 4 Pro',
+  ],
+  'AVATA 360 SERIES': [
+    'DJI Avata 360 (DJI RC 2)',
+    'DJI Avata 360 Fly More Combo (DJI RC 2)',
+    'DJI Avata 360 Motion Fly More Combo (DJI Goggles N3)',
+  ],
   'OA Series': [
     'Osmo Action 6 Adventure Combo',
     'Osmo Action 6 Street Photography Gift Set',
     'Osmo Action 6 Standard Combo',
-    'Osmo Action 5 PRO Adventure Combo',
-    'Osmo Action 5 PRO Standard Combo',
-    'Osmo Action 4 Adventure Combo',
-    'Osmo Action 4 Standard Combo',
-    'Action 6',
-    'Action 5',
-    'Action 4',
-  ],
-  'ACTION SERIES': [
-    'Osmo Action 6 Adventure Combo',
-    'Osmo Action 6 Street Photography Gift Set',
-    'Osmo Action 6 Standard Combo',
-    'Osmo Action 5 PRO Adventure Combo',
-    'Osmo Action 5 PRO Standard Combo',
-    'Osmo Action 4 Adventure Combo',
-    'Osmo Action 4 Standard Combo',
-    'Action 6',
-    'Action 5',
-    'Action 4',
   ],
   'Pocket Series': [
     'Osmo Pocket 4 Creator Combo',
     'Osmo Pocket 4 Standard Combo',
     'Osmo Pocket 4P Vlog Combo',
     'Osmo Pocket 4P Standard Combo',
-    'Osmo Pocket 3 Creator Combo',
-    'Osmo Pocket 3',
-    'Pocket 4',
-    'Pocket 3',
   ],
-  'POCKET 4 SERIES': [
-    'Osmo Pocket 4 Creator Combo',
-    'Osmo Pocket 4 Standard Combo',
-    'Osmo Pocket 4P Vlog Combo',
-    'Osmo Pocket 4P Standard Combo',
-    'Osmo Pocket 3 Creator Combo',
-    'Osmo Pocket 3',
-    'Pocket 4',
-    'Pocket 3',
+  'NEO Series': [
+    'DJI NEO 2 MOTION FLY MORE COMBO',
+    'DJI NEO 2 FLY MORE COMBO',
+    'DJI Neo 2 Fly More Combo (Drone Only)',
+    'DJI NEO 2',
   ],
-  'NEO Series': ['DJI Neo (GL)', 'DJI Neo Fly More Combo', 'DJI Neo 2'],
   'Mini 5 Pro': [
+    'DJI Mini 5 Pro Fly More Combo Plus (DJI RC2)',
+    'DJI Mini 5 Pro Fly More Combo (DJI RC2)',
+    'DJI Mini 5 Pro Fly More Combo (DJI RC-N3)',
     'DJI Mini 5 Pro',
-    'DJI Mini 5 Pro Fly More Combo',
-    'DJI Mini 5 Pro Fly More Combo (DJI RC 2)',
-    'Mini 5 Pro',
   ],
-  'Lito X1': ['Lito X1', 'Lito 1'],
+  'Lito X1': [
+    'DJI Lito X1 Fly More Combo Plus (DJI RC 2)',
+    'DJI Lito X1 Fly More Combo (DJI RC 2)',
+    'DJI Lito X1 Fly More Combo (DJI RC-N3)',
+    'DJI Lito X1',
+  ],
 };
 
 export function categorizeMainPushModel(s: SaleTuple): string | null {
   const serName = DJI_DATA.ser[s[2]] || '';
-  if (serName.includes('MINI 5 PRO')) return 'Mini 5 Pro';
-  if (serName.includes('NEO')) return 'NEO Series';
-  if (serName.includes('LITO')) return 'Lito X1';
-  if (serName.includes('ACTION')) return 'OA Series';
-  if (serName.includes('POCKET')) return 'Pocket Series';
+  if (serName.includes('MINI 5 PRO')) return 'MINI 5 PRO SERIES';
+  if (serName.includes('NEO 2')) return 'NEO 2 SERIES';
+  if (serName.includes('NEO')) return 'NEO SERIES';
+  if (serName.includes('LITO X1')) return 'LITO X1 SERIES';
+  if (serName.includes('LITO')) return 'LITO 1 SERIES';
+  if (serName.includes('ACTION 6')) return 'OSMO ACTION 6 SERIES';
+  if (serName.includes('ACTION 5')) return 'OSMO ACTION 5 PRO SERIES';
+  if (serName.includes('ACTION 4')) return 'OSMO ACTION 4 SERIES';
+  if (serName.includes('POCKET 4P')) return 'OSMO POCKET 4P SERIES';
+  if (serName.includes('POCKET 4')) return 'OSMO POCKET 4 SERIES';
+  if (serName.includes('POCKET 3')) return 'OSMO POCKET 3 SERIES';
+  if (serName.includes('AIR 3S')) return 'AIR 3S SERIES';
+  if (serName.includes('MAVIC 4')) return 'MAVIC 4 PRO SERIES';
+  if (serName.includes('AVATA 360')) return 'AVATA 360 SERIES';
+  if (isHardwareUnitItem(serName)) return serName;
   return null;
 }
 
 export function calculateMainPushBreakdown(
   sales: SaleTuple[],
   staffList: string[] = DJI_DATA.staff,
-  monthNum: number = 9, // 9 = October
+  monthNum?: number,
   customTargets?: Record<string, number>,
-  customVariants?: Record<string, string[]>
+  customVariants?: Record<string, string[]>,
+  yearNum?: number
 ): {
   categories: MainPushCategoryBreakdown[];
   totalStoreTarget: number;
@@ -714,22 +797,35 @@ export function calculateMainPushBreakdown(
     remaining: number;
     pct: number;
   }[];
+  activeMonthNum: number;
+  activeYearNum: number;
 } {
-  // Store targets from master specification or user custom targets
-  // If customTargets is provided by user, respect exactly those keys (allowing targets to be deleted)
+  const now = new Date();
+  const activeMonthNum = monthNum !== undefined ? monthNum : now.getMonth();
+  const activeYearNum = yearNum !== undefined ? yearNum : now.getFullYear();
+
+  // Filter sales dynamically for the targeted month and year
+  const currentMonthSales = sales.filter((s) => {
+    const d = dayOffsetToDate(s[0]);
+    if (yearNum !== undefined) {
+      return d.getMonth() === activeMonthNum && d.getFullYear() === activeYearNum;
+    }
+    return d.getMonth() === activeMonthNum;
+  });
+
+  // Default target map following the master series
   const targetMap: Record<string, number> =
     customTargets !== undefined
       ? customTargets
       : {
-          'Mini 5 Pro': 9,
-          'NEO Series': 18,
-          'Lito X1': 15,
-          'OA Series': 54,
-          'Pocket Series': 45,
+          'OSMO ACTION 6 SERIES': 54,
+          'OSMO POCKET 4 SERIES': 45,
+          'NEO 2 SERIES': 18,
+          'LITO X1 SERIES': 15,
+          'MINI 5 PRO SERIES': 9,
         };
 
   const promoterCount = Math.max(staffList.length, 1);
-  const octSales = sales.filter((s) => dayOffsetToDate(s[0]).getMonth() === monthNum);
 
   const categories: MainPushCategoryBreakdown[] = Object.entries(targetMap).map(
     ([name, storeTarget]) => {
@@ -743,33 +839,53 @@ export function calculateMainPushBreakdown(
         pct: 0,
       }));
 
-      // Determine candidate variants for this category
-      const known = KNOWN_SERIES_VARIANTS[name];
+      // Candidate variants: lookup in KNOWN_SERIES_VARIANTS or match master products in stock
+      const upper = name.toUpperCase();
+      const known = KNOWN_SERIES_VARIANTS[name] || KNOWN_SERIES_VARIANTS[upper];
       let candidateVariants: SeriesVariantInfo[] = [];
+
       if (known && known.length > 0) {
         candidateVariants = [...known];
       } else {
-        const upper = name.toUpperCase();
-        const matches = DJI_DATA.ser
-          .filter((s) => isHardwareUnitItem(s))
-          .filter((s) => s.includes(upper) || upper.includes(s));
-        if (matches.length > 0) {
-          candidateVariants = matches.map((m) => ({ label: m, rawSerName: m }));
-        } else if (isHardwareUnitItem(name)) {
-          candidateVariants = [{ label: name, rawSerName: name }];
+        const stockMatches = DJI_DATA.stock.filter(
+          (s) =>
+            (s[0].toUpperCase() === upper ||
+              s[0].toUpperCase().includes(upper) ||
+              upper.includes(s[0].toUpperCase())) &&
+            isHardwareUnitItem(s[0], s[1])
+        );
+
+        if (stockMatches.length > 0) {
+          candidateVariants = stockMatches.map((m) => ({ label: m[1], rawSerName: m[0] }));
+        } else {
+          const matches = DJI_DATA.ser
+            .filter((s) => isHardwareUnitItem(s))
+            .filter((s) => s.includes(upper) || upper.includes(s));
+          if (matches.length > 0) {
+            candidateVariants = matches.map((m) => ({ label: m, rawSerName: m }));
+          } else if (isHardwareUnitItem(name)) {
+            candidateVariants = [{ label: name, rawSerName: name }];
+          }
         }
       }
 
-      // Determine which variants are selected
+      // Merge candidate variants with custom added subvariants
       const selectedList = customVariants?.[name] ?? DEFAULT_MAIN_PUSH_VARIANTS[name];
-      const variants: VariantBreakdown[] = candidateVariants
-        .filter((v) => isHardwareUnitItem(v.rawSerName, v.label))
-        .map((v) => ({
-          label: v.label,
-          rawSerName: v.rawSerName,
-          selected: selectedList ? selectedList.includes(v.label) : true,
+      const variantLabels = new Set<string>();
+      candidateVariants.forEach((v) => variantLabels.add(v.label));
+      if (selectedList) {
+        selectedList.forEach((v) => variantLabels.add(v));
+      }
+
+      const variants: VariantBreakdown[] = Array.from(variantLabels).map((label) => {
+        const matchedCandidate = candidateVariants.find((c) => c.label === label);
+        return {
+          label,
+          rawSerName: matchedCandidate ? matchedCandidate.rawSerName : name,
+          selected: selectedList ? selectedList.includes(label) : true,
           sold: 0,
-        }));
+        };
+      });
 
       return {
         name,
@@ -790,8 +906,8 @@ export function calculateMainPushBreakdown(
     unitsBySn.set(u[0].toUpperCase(), u[1]);
   });
 
-  // Aggregate sales with variant matching (Hardware Units Only - accessories & care refresh strictly excluded)
-  octSales.forEach((s) => {
+  // Aggregate current month sales with variant matching
+  currentMonthSales.forEach((s) => {
     if (s[2] === ACCESSORIES_INDEX || s[2] === CARE_INDEX) return;
     const serName = DJI_DATA.ser[s[2]] || '';
     if (!isHardwareUnitItem(serName)) return;
@@ -801,15 +917,17 @@ export function calculateMainPushBreakdown(
 
     for (const cat of categories) {
       let matched = false;
+      const catUpper = cat.name.toUpperCase();
+      const serUpper = serName.toUpperCase();
 
-      // Check each variant in the category
       for (const variant of cat.variants) {
         const vRaw = variant.rawSerName.toUpperCase();
         const vLabel = variant.label.toUpperCase();
-        const serUpper = serName.toUpperCase();
-
         const isMatch =
-          (unitProdName && (unitProdName === vLabel || unitProdName.includes(vLabel) || vLabel.includes(unitProdName))) ||
+          (unitProdName &&
+            (unitProdName === vLabel ||
+              unitProdName.includes(vLabel) ||
+              vLabel.includes(unitProdName))) ||
           serUpper === vRaw ||
           serUpper === vLabel ||
           serUpper.includes(vRaw) ||
@@ -824,10 +942,7 @@ export function calculateMainPushBreakdown(
           (vLabel.includes('LITO') && serUpper.includes('LITO'));
 
         if (isMatch) {
-          // Track sold count on the variant always
           variant.sold += u;
-
-          // Only credit towards category and promoter target if this variant is selected!
           if (variant.selected) {
             cat.storeSold += u;
             const promoter = cat.promoters[s[1]];
@@ -840,14 +955,25 @@ export function calculateMainPushBreakdown(
         }
       }
 
+      // If no specific variant matched, but the series directly matches
+      if (!matched && (serUpper === catUpper || serUpper.includes(catUpper) || catUpper.includes(serUpper))) {
+        const allSelected = cat.variants.every((v) => v.selected);
+        if (allSelected || cat.variants.length === 0) {
+          cat.storeSold += u;
+          const promoter = cat.promoters[s[1]];
+          if (promoter) {
+            promoter.sold += u;
+          }
+          matched = true;
+        }
+      }
+
       if (matched) break;
     }
   });
 
-  // Calculate remaining and percentages
   let totalStoreTarget = 0;
   let totalStoreSold = 0;
-
   const totalPerPromoter = staffList.map((stName, idx) => ({
     staffIndex: idx,
     name: stName,
@@ -887,6 +1013,8 @@ export function calculateMainPushBreakdown(
     totalStoreRemaining,
     totalStorePct,
     totalPerPromoter,
+    activeMonthNum,
+    activeYearNum,
   };
 }
 

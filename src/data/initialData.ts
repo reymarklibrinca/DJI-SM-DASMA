@@ -2,13 +2,14 @@ import rawData from './djiData.json';
 import { DjiDataset } from '../types';
 
 export const DJI_DATA: DjiDataset = rawData as unknown as DjiDataset;
+export * from './masterCatalog';
 
 export const MAIN_PUSH_TARGETS: [name: string, sold: number, target: number][] = [
-  ['Mini 5 Pro', 0, 9],
-  ['NEO Series', 0, 18],
-  ['Lito X1', 0, 15],
-  ['OA Series', 0, 54],
-  ['Pocket Series', 0, 45],
+  ['MINI 5 PRO SERIES', 0, 9],
+  ['NEO 2 SERIES', 0, 18],
+  ['LITO X1 SERIES', 0, 15],
+  ['OSMO ACTION 6 SERIES', 0, 54],
+  ['OSMO POCKET 4 SERIES', 0, 45],
 ];
 
 export const ROUTINE_TASKS: string[] = [

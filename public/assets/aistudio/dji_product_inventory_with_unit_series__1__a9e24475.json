@@ -1,0 +1,1586 @@
+{
+  "title": "DJI Product Inventory",
+  "format_version": "1.0",
+  "fields": [
+    "unit",
+    "series",
+    "product_name"
+  ],
+  "products": [
+    {
+      "unit": "Drone",
+      "series": "MAVIC 3 PRO SERIES",
+      "product_name": "DJI MAVIC 3 PRO CINE PREMIUM COMBO"
+    },
+    {
+      "unit": "Drone",
+      "series": "MAVIC 3 PRO SERIES",
+      "product_name": "DJI MAVIC 3 PRO FLY MORE COMBO (RC PRO)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MAVIC 3 PRO SERIES",
+      "product_name": "DJI MAVIC 3 PRO FLY MORE COMBO (DJI RC)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MAVIC 3 PRO SERIES",
+      "product_name": "DJI MAVIC 3 PRO (DJI RC)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MAVIC 4 PRO SERIES",
+      "product_name": "DJI Mavic 4 Pro 512GB Greator Combo(DJI RC Pro2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MAVIC 4 PRO SERIES",
+      "product_name": "DJI Mavic 4 Pro Fly More Combo(DJI RC 2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MAVIC 4 PRO SERIES",
+      "product_name": "DJI Mavic 4 Pro"
+    },
+    {
+      "unit": "Drone",
+      "series": "AIR 3S SERIES",
+      "product_name": "DJI Air 3S Fly More Combo (DJI RC 2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AIR 3S SERIES",
+      "product_name": "DJI Air 3S Fly More Combo (DJI RC-N3)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AIR 3S SERIES",
+      "product_name": "DJI Air 3S (DJI RC-N3)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 5 PRO SERIES",
+      "product_name": "DJI Mini 5 Pro Fly More Combo Plus (DJI RC2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 5 PRO SERIES",
+      "product_name": "DJI Mini 5 Pro Fly More Combo (DJI RC2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 5 PRO SERIES",
+      "product_name": "DJI Mini 5 Pro Fly More Combo (DJI RC-N3)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 5 PRO SERIES",
+      "product_name": "DJI Mini 5 Pro"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 4 PRO SERIES",
+      "product_name": "DJI Mini 4 Pro Fly More Combo Plus (DJI RC 2) (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 4 PRO SERIES",
+      "product_name": "DJI Mini 4 Pro Fly More Combo (DJI RC 2) (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 4 PRO SERIES",
+      "product_name": "DJI Mini 4 Pro (DJI RC 2) (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 4 PRO SERIES",
+      "product_name": "DJI Mini 4 Pro (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "LITO X1 SERIES",
+      "product_name": "DJI Lito X1 Fly More Combo Plus (DJI RC 2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "LITO X1 SERIES",
+      "product_name": "DJI Lito X1 Fly More Combo (DJI RC 2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "LITO X1 SERIES",
+      "product_name": "DJI Lito X1 Fly More Combo (DJI RC-N3)"
+    },
+    {
+      "unit": "Drone",
+      "series": "LITO X1 SERIES",
+      "product_name": "DJI Lito X1"
+    },
+    {
+      "unit": "Drone",
+      "series": "LITO 1 SERIES",
+      "product_name": "DJI Lito 1 Fly More Combo (DJI RC-N3)"
+    },
+    {
+      "unit": "Drone",
+      "series": "LITO 1 SERIES",
+      "product_name": "DJI Lito 1"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 4K SERIES",
+      "product_name": "DJI Mini 4k Fly More Combo (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 4K SERIES",
+      "product_name": "DJI Mini 4K (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 3 SERIES",
+      "product_name": "DJI MINI 3 FLY MORE COMBO (DJI RC GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 3 SERIES",
+      "product_name": "DJI MINI 3 (DJI RC) (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 3 SERIES",
+      "product_name": "DJI MINI 3 (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "MINI 2 SE SERIES",
+      "product_name": "DJI MINI 2 SE"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA 360 SERIES",
+      "product_name": "DJI Avata 360 (DJI RC 2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA 360 SERIES",
+      "product_name": "DJI Avata 360 Fly More Combo (DJI RC 2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA 360 SERIES",
+      "product_name": "DJI Avata 360 Motion Fly More Combo (DJI Goggles N3)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA 2 SERIES",
+      "product_name": "DJI Avata 2 Fly More Combo (Single Battery)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA 2 SERIES",
+      "product_name": "DJI Avata 2 Fly More Combo (Three Batteries)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA 2 SERIES",
+      "product_name": "DJI Avata 2 Fly Smart Combo (Single Battery)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA 2 SERIES",
+      "product_name": "DJI Avata 2 Fly Smart Combo (Three Batteries)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA SERIES",
+      "product_name": "DJI AVATA EXPLORER COMBO"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA SERIES",
+      "product_name": "DJI AVATA PRO-VIEW COMBO (DJI RC MOTION 2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA SERIES",
+      "product_name": "DJI AVATA PRO-VIEW COMBO (DJI GOGGLES 2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "AVATA SERIES",
+      "product_name": "DJI AVATA FLY SMART COMBO (DJI FPV GOGGLES V2)"
+    },
+    {
+      "unit": "Drone",
+      "series": "NEO 2 SERIES",
+      "product_name": "DJI NEO 2 MOTION FLY MORE COMBO"
+    },
+    {
+      "unit": "Drone",
+      "series": "NEO 2 SERIES",
+      "product_name": "DJI NEO 2 FLY MORE COMBO"
+    },
+    {
+      "unit": "Drone",
+      "series": "NEO 2 SERIES",
+      "product_name": "DJI Neo 2 Fly More Combo (Drone Only)"
+    },
+    {
+      "unit": "Drone",
+      "series": "NEO 2 SERIES",
+      "product_name": "DJI NEO 2"
+    },
+    {
+      "unit": "Drone",
+      "series": "NEO SERIES",
+      "product_name": "DJI NEO MOTION FLY MORE COMBO"
+    },
+    {
+      "unit": "Drone",
+      "series": "NEO SERIES",
+      "product_name": "DJI NEO FLY MORE COMBO"
+    },
+    {
+      "unit": "Drone",
+      "series": "NEO SERIES",
+      "product_name": "DJI NEO"
+    },
+    {
+      "unit": "Drone",
+      "series": "NEO SERIES",
+      "product_name": "DJI NEO COMBO (GLOBAL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "FLIP SERIES",
+      "product_name": "DJI Flip Fly More Combo (DJI RC 2) (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "FLIP SERIES",
+      "product_name": "DJI FLIP (No RC, Two Batteries)"
+    },
+    {
+      "unit": "Drone",
+      "series": "FLIP SERIES",
+      "product_name": "DJI Flip (DJI RC 2) (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "FLIP SERIES",
+      "product_name": "DJI Flip (GL)"
+    },
+    {
+      "unit": "Drone",
+      "series": "ROBOMASTER S1 SERIES",
+      "product_name": "DJI Robomaster S1"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "DJI POWER 1000 Mini (PHI)"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "POWER 1000"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "DJI Power 1000 V2 (CN)"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "DJI Power 2000 (CN)"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "DJI POWER 1000V2 (CN)(RB)"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "IBCPOWER 200W Foldable Solar Panel (Non-CN)"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "IBCPOWER 100W Foldable Solar Panel"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "DJI Power Car Battery Charging Cable"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "DJI Power 140W GaN Charging Combo (NA&JP)"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "DJI Power 140W GaN Charger (NA&JP)"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "DJI Power Car Power Charging Cable"
+    },
+    {
+      "unit": "Power & Accessories",
+      "series": "DJI POWER SERIES",
+      "product_name": "DJI Power MC4 Solar Power Charging Cable"
+    },
+    {
+      "unit": "Handheld",
+      "series": "DJI FOCUS PRO SERIES",
+      "product_name": "DJI Focus Pro All-in-One Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "DJI FOCUS PRO SERIES",
+      "product_name": "DJI Focus Pro Creator Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RONIN 4D SERIES",
+      "product_name": "DJI RONIN 4D 6K COMBO"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 5 SERIES",
+      "product_name": "RS 5 Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 5 SERIES",
+      "product_name": "RS 5"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 4 PRO SERIES",
+      "product_name": "DJI RS 4 Pro Combo 2026"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 4 PRO SERIES",
+      "product_name": "DJI RS 4 Pro Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 4 PRO SERIES",
+      "product_name": "DJI RS 4 Pro"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 4 SERIES",
+      "product_name": "DJI RS 4 Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 4 SERIES",
+      "product_name": "DJI RS 4"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 4 SERIES",
+      "product_name": "DJI RS 4 (PROMOTION Oct. 6-12)"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 4 MINI SERIES",
+      "product_name": "DJI RS 4 MINI"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 4 MINI SERIES",
+      "product_name": "DJI RS 4 MINI COMBO"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 3 PRO SERIES",
+      "product_name": "DJI RS 3 PRO COMBO"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 3 PRO SERIES",
+      "product_name": "DJI RS 3 PRO"
+    },
+    {
+      "unit": "Handheld",
+      "series": "RS 3 MINI SERIES",
+      "product_name": "DJI RS 3 MINI"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO POCKET 4P SERIES",
+      "product_name": "Osmo Pocket 4P Vlog Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO POCKET 4P SERIES",
+      "product_name": "Osmo Pocket 4P Standard Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO POCKET 4P SERIES",
+      "product_name": "Osmo Pocket 4P Standard Combo (Pearl White)"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO POCKET 4 SERIES",
+      "product_name": "Osmo Pocket 4 Creator Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO POCKET 4 SERIES",
+      "product_name": "Osmo Pocket 4 Standard Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO POCKET 3 SERIES",
+      "product_name": "Osmo Pocket 3 Creator Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO POCKET 3 SERIES",
+      "product_name": "Osmo Pocket 3"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO 360 II SERIES",
+      "product_name": "Osmo 360 II Adventure Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO 360 II SERIES",
+      "product_name": "Osmo 360 II Limitless Riding Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO 360 II SERIES",
+      "product_name": "Osmo 360 II Standard Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO 360 II SERIES",
+      "product_name": "Osmo 360 II Soft Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO 360 SERIES",
+      "product_name": "Osmo 360 Adventure Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO 360 SERIES",
+      "product_name": "Osmo 360 Standard Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO ACTION 6 SERIES",
+      "product_name": "Osmo Action 6 Adventure Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO ACTION 6 SERIES",
+      "product_name": "Osmo Action 6 Street Photography Gift Set"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO ACTION 6 SERIES",
+      "product_name": "Osmo Action 6 Standard Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO ACTION 5 PRO SERIES",
+      "product_name": "Osmo Action 5 PRO Adventure Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO ACTION 5 PRO SERIES",
+      "product_name": "Osmo Action 5 PRO Standard Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO ACTION 4 SERIES",
+      "product_name": "Osmo Action 4 Adventure Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO ACTION 4 SERIES",
+      "product_name": "Osmo Action 4 Standard Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO NANO SERIES",
+      "product_name": "DJI OSMO NANO (128GB)"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO NANO SERIES",
+      "product_name": "DJI OSMO NANO (64GB)"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO MOBILE 8P SERIES",
+      "product_name": "Osmo Mobile 8P Standard Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO MOBILE 8P SERIES",
+      "product_name": "Osmo Mobile 8P AdvancedTracking Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO MOBILE 8P SERIES",
+      "product_name": "Osmo Mobile 8P Creator Combo"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO MOBILE 8 SERIES",
+      "product_name": "DJI OSMO MOBILE 8"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO MOBILE 8 SERIES",
+      "product_name": "DJI OSMO MOBILE 8 (Device Only)"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO MOBILE 7P SERIES",
+      "product_name": "DJI Osmo Mobile 7P"
+    },
+    {
+      "unit": "Handheld",
+      "series": "OSMO MOBILE 7 SERIES",
+      "product_name": "DJI OSMO MOBILE 7"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC 2 SERIES",
+      "product_name": "DJI Mic 2 (2 TX + 1 RX + Charging Case)（CE）"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC 2 SERIES",
+      "product_name": "DJI Mic 2 (1 TX + 1 RX)（CE）"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC 2 SERIES",
+      "product_name": "DJI Mic 2 Transmitter (Pearl White)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC 2 SERIES",
+      "product_name": "DJI Mic 2 Transmitter (Shadow Black)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC 3 SERIES",
+      "product_name": "DJI Mic 3 (2 TX + 1 RX + Charging Case)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC 3 SERIES",
+      "product_name": "DJI Mic 3 (1 TX + 1 RX)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC 3 SERIES",
+      "product_name": "DJI Mic 3 Transmitter"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC 3 SERIES",
+      "product_name": "DJI Mic 3 Receiver"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC 3 SERIES",
+      "product_name": "DJI Mic 3 Charging Case"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC SERIES",
+      "product_name": "DJI MIC (2TX & 1 RX)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC SERIES",
+      "product_name": "DJI MIC (1TX & 1 RX)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI 2 SERIES",
+      "product_name": "DJI Mic Mini 2 (2 TX + 1 RX + Charging Case)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI 2 SERIES",
+      "product_name": "DJI Mic Mini 2 (2 TX + 1 Mobile RX + Charging Case)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI 2 SERIES",
+      "product_name": "DJI Mic Mini 2 (1 TX + 1 Mobile RX + Charging Case)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI 2 SERIES",
+      "product_name": "DJI Mic Mini 2 (1 TX + 1 RX)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI 2 SERIES",
+      "product_name": "DJI Mic Mini 2 Transmitter"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI 2S SERIES",
+      "product_name": "DJI Mic Mini 2S (2 TX + 1 RX + Charging Case)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI 2S SERIES",
+      "product_name": "DJI Mic Mini 2S (1 TX + 1 RX)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI 2S SERIES",
+      "product_name": "DJI Mic Mini 2S (1 TX + 1 Mobile RX + Charging Case)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI 2S SERIES",
+      "product_name": "DJI Mic Mini 2S Transmitter"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI SERIES",
+      "product_name": "DJI Mic Mini (2 TX + 1 RX + Charging Case)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI SERIES",
+      "product_name": "DJI Mic Mini (1 TX + 1 RX)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI SERIES",
+      "product_name": "DJI Mic Mini Transmitter (Arctic White)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI MIC MINI SERIES",
+      "product_name": "DJI Mic Mini Transmitter (Infinity Black)"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI SDR TRANSMISSION 2 SERIES",
+      "product_name": "DJI SDR Transmission 2"
+    },
+    {
+      "unit": "Audio",
+      "series": "DJI SDR TRANSMISSION 2 SERIES",
+      "product_name": "DJI SDR Transmission 2 Combo"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI NEO 2 ACCESSORIES",
+      "product_name": "DJI Neo 2 Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI NEO 2 ACCESSORIES",
+      "product_name": "DJI NEO 2 PROPELLERS GUARD"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI NEO 2 ACCESSORIES",
+      "product_name": "DJI NEO 2 PROPELLERS"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI NEO 2 ACCESSORIES",
+      "product_name": "DJI NEO 2 TWO WAY CHARGING HUB"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI NEO 2 ACCESSORIES",
+      "product_name": "DJI NEO 2 DIGITAL TRANSCEIVER"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI LITO ACCESSORIES",
+      "product_name": "DJI Lito 1 Two-Way Charging Hub"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI LITO ACCESSORIES",
+      "product_name": "DJI Lito 1 Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI LITO ACCESSORIES",
+      "product_name": "DJI Lito X1 Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI LITO ACCESSORIES",
+      "product_name": "DJI Lito Series Intelligent Flight Battery Plus"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI LITO ACCESSORIES",
+      "product_name": "DJI Lito Series 360° Propeller Guard"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI NEO ACCESSORIES",
+      "product_name": "DJI Neo Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI NEO ACCESSORIES",
+      "product_name": "DJI NEO PROPELLERS GUARD"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI NEO ACCESSORIES",
+      "product_name": "DJI NEO PROPELLERS"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI NEO ACCESSORIES",
+      "product_name": "NEO TWO WAY CHARGING HUB"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MAVIC 3 PRO ACCESSORIES",
+      "product_name": "DJI Mavic 3 Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MAVIC 3 PRO ACCESSORIES",
+      "product_name": "DJI MAVIC 3 LOW-NOISE PROPELLERS"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MAVIC 4 PRO ACCESSORIES",
+      "product_name": "DJI Mavic 4 Pro Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MAVIC 4 PRO ACCESSORIES",
+      "product_name": "DJI Mavic 4 Pro Propellers"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MAVIC 4 PRO ACCESSORIES",
+      "product_name": "DJI Mavic 4 Pro Parallel Charging Hub"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MAVIC 4 PRO ACCESSORIES",
+      "product_name": "DJI Mavic 4 Pro Propeller Guard"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MAVIC 4 PRO ACCESSORIES",
+      "product_name": "DJI Mavic 4 Pro Electronic ND Filter"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MAVIC 4 PRO ACCESSORIES",
+      "product_name": "DJI RC Pro 2"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MAVIC 4 PRO ACCESSORIES",
+      "product_name": "DJI 240W Power Adapter(EU)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI FLIP ACCESSORIES",
+      "product_name": "DJI Flip Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI FLIP ACCESSORIES",
+      "product_name": "DJI Flip ND Filters Set (ND16/64/256)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI FLIP ACCESSORIES",
+      "product_name": "DJI Flip Propellers (Pair) (Screws Included)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "DJI FLIP ACCESSORIES",
+      "product_name": "DJI Flip Parallel Charging Hub"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AIR 3 ACCESSORIES",
+      "product_name": "DJI Air 3 Gimbal Protector"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AIR 3 ACCESSORIES",
+      "product_name": "DJI Air 3 Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AIR 3 ACCESSORIES",
+      "product_name": "DJI Air 3 Low-Noise Propellers (Pair)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AIR 3 ACCESSORIES",
+      "product_name": "DJI Air 3 Battery Charging Hub"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AIR 3 ACCESSORIES",
+      "product_name": "DJI Air 3 Propeller Guard"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AIR 3 ACCESSORIES",
+      "product_name": "DJI Air 3 ND Filters Set (ND8/16/32/64)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AIR 3 ACCESSORIES",
+      "product_name": "DJI Air 3 Wide-Angle Lens"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AIR 3S ACCESSORIES",
+      "product_name": "DJI Air 3S Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AIR 3S ACCESSORIES",
+      "product_name": "DJI Air 3S Wide-Angle Lens"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MINI 4 PRO ACCESSORIES",
+      "product_name": "DJI Mini 4 Pro Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MINI 4 PRO ACCESSORIES",
+      "product_name": "DJI Mini 4 Pro ND Filters Set (ND 16/64/256)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MINI 4 PRO ACCESSORIES",
+      "product_name": "DJI Mini 4 Pro Wide-Angle Lens"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MINI 4 PRO ACCESSORIES",
+      "product_name": "DJI Mini 4 Pro 360 Propeller Guard"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MINI 5 PRO ACCESSORIES",
+      "product_name": "DJI Mini 5 Pro Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MINI 5 PRO ACCESSORIES",
+      "product_name": "DJI Mini 5 Pro Intelligent Flight Battery Plus"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MINI 5 PRO ACCESSORIES",
+      "product_name": "DJI Mini 5 Pro Propellers"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MINI 5 PRO ACCESSORIES",
+      "product_name": "DJI Mini 5 Pro Two-Way Charging Hub"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MINI 5 PRO ACCESSORIES",
+      "product_name": "DJI Mini 5 Pro Quick-Release 360° Propeller Guard (with Integrated Propellers)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata 360 Replacement Lens Kit With Tools"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata 360 Replacement Lens Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata 360 Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata 360 Two-Way Charging Hub"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata 360 Propellers"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Goggles 3"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI RC Motion 3"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI FPV Remote Controller 3"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata 2 Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata 2 Propellers"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata 2 Battery Charging Hub"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata Fly More Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI RC Motion 2"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Goggles 2"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI Avata Intelligent Flight Battery"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI AVATA ND FILTERS SET (ND8/16/32)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "AVATA ACCESSORIES",
+      "product_name": "DJI FPV Remote Controller 2"
+    },
+    {
+      "unit": "Remote Controller",
+      "series": "REMOTE CONTROLLER",
+      "product_name": "DJI RC"
+    },
+    {
+      "unit": "Remote Controller",
+      "series": "REMOTE CONTROLLER",
+      "product_name": "DJI RC Pro"
+    },
+    {
+      "unit": "Remote Controller",
+      "series": "REMOTE CONTROLLER",
+      "product_name": "DJI RC 2"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Adjustable Quick-Release Adapter Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Hanging Neck Mount Max"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo 360 Transparent Lens Protectors"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo 360 II Battery Extension Rod"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo 360 II Lens Replacement Kit (Dual)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo 360 II Lens Replacement Kit (Single)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Multifunctional Battery Case 3"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo 1.2m Dual-Direction Quick-Release Invisible Selfie Stick Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Dual-Direction <br>Battery Handle"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Extreme Battery Plus (2150 mAh)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo 360 Battery Extension Rod"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Motorcycle Heavy-duty Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Multifunctinal Charging Handle"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Cold Shoe Expantion Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Helmet Chin Mount Clip"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Magnetic Headband"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo action Extreme Battery Plus(1950mAh)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Flexible Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 5 Pro Glass lens Cover"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Road Cycling Accessory Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Hanging Neck Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action ND Filter Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Curved Adhesive Base Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action GPS Bluetooth Remote Controller"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Bike Seat Rail Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 360° Wrist Strap"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Mini Handlebar Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 4 Glass Lens Cover"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Bite Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 3.5mm Audio Adapter"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI Action Mini Extension Rod"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI Floating Handle"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO Action 3 Handlebar Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION SUCTION CUP MOUNT"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO Action 3 Chest Strap Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Surfing Tether Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action Surfing Tethers"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION QUICK-RELEASE ADAPTER MOUNT"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI Osmo Action 3 Waterproof Case"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION 3 EXTREME BATTERY"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION 3 ADHESIVE BASE KIT"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION 3 1.5M EXTENSION ROD KIT"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION 3 MULTIFUNCTIONAL BATTERY CASE"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION 3 LENS PROTECTIVE COVER"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION BIKING ACCESSORY KIT"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION DIVING ACCESSORY KIT"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Backpack Strap Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI OSMO ACTION HELMET CHIN MOUNT"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI-Osmo Magnetic Ball-Joint Adapter Mount"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI Osmo Action Floating Case CA2071"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "OSMO ACTION FLOATING CASE"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI Osmo Action Protective Camera Decal (Blue Camo) AC0422"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "DJI Osmo Action Protective Camera Decal (Celestial Gray) AC0412"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 5 Street Photography Grip Accessory Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 6 Macro Lens"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 6 Glass Lens Cover"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 6 Diving Accessory Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 6 ND Filter Set"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 6 Waterproof Case"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 6 FOV Boost Lens"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO ACTION ACCESSORIES",
+      "product_name": "Osmo Action 6 Street Photography Grip Accessory Kit"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 3 Carrying Bag"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 3 Magnetic ND Filters Set"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 3 Black Mist Filter"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 3 Battery Handle"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 3 Wide-Angle Lens"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 3 Expansion Adapter"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Mini Tripod"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 4 Battery Handle(Black)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 4 Carrying Bag(Black)"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 4 Fill Light"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 4P Wide-Angle Lens"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 4P Black Mist Filter"
+    },
+    {
+      "unit": "Accessories",
+      "series": "OSMO POCKET ACCESSORIES",
+      "product_name": "Osmo Pocket 4P ND Filter Set"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MIC MINI ACCESSORIES",
+      "product_name": "DJI Mic Mini 2 Time Series Magnetic Front Cover"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MIC MINI ACCESSORIES",
+      "product_name": "DJI Mic Mini 2 Multi-Color Windscreens"
+    },
+    {
+      "unit": "Accessories",
+      "series": "MIC MINI ACCESSORIES",
+      "product_name": "DJI Mic Mini 2 Multi-Color Magnetic Front Cover"
+    },
+    {
+      "unit": "Others",
+      "series": "OTHERS",
+      "product_name": "DJI MAVIC 3 CINE PREMIUM COMBO"
+    },
+    {
+      "unit": "Others",
+      "series": "OTHERS",
+      "product_name": "DJI SDR TRANSMISSION COMBO"
+    },
+    {
+      "unit": "Others",
+      "series": "OTHERS",
+      "product_name": "DJI SDR TRANSMISSION RECEIVER"
+    },
+    {
+      "unit": "Others",
+      "series": "OTHERS",
+      "product_name": "DJI SDR TRANSMISSION TRANSMITTER"
+    },
+    {
+      "unit": "Others",
+      "series": "OTHERS",
+      "product_name": "DJI - Robomaster S1 Part9 Gel Beads"
+    },
+    {
+      "unit": "Others",
+      "series": "OTHERS",
+      "product_name": "DJI RS L-Shaped Multi-Camera Control Cable (USB-C, 30 cm)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Mavic 4 Pro)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Air 3S)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Mini 5 Pro)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Avata 360)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Lito X1)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Flip)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Lito 1)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Neo 2)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Osmo Pocket 4P)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Osmo Pocket 4)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Osmo Pocket 3)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Action 6)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Osmo 360)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Osmo Action 5 Pro)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 2 Year Plan (DJI Osmo Nano)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Mavic 4 Pro)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Air 3S)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Mini 5 Pro)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Avata 360)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Lito X1)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Flip)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Lito 1)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Neo 2)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Osmo Pocket 4P)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Osmo Pocket 4)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Osmo Pocket 3)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Action 6)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Osmo 360)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Osmo Action 5 Pro)"
+    },
+    {
+      "unit": "Services",
+      "series": "DJI CARE REFRESH SERVICES",
+      "product_name": "DJI Care Refresh 1 Year Plan (DJI Osmo Nano)"
+    }
+  ]
+}

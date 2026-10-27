@@ -70,7 +70,7 @@ export const ProductsTab: React.FC<ProductsTabProps> = ({
             Product Series Revenue Matrix ({periodRange.lb})
           </h3>
           <p className="text-xs text-slate-500">
-            Categorical revenue performance and unit velocity across 29 DJI product lines.
+            Categorical revenue performance and unit velocity across {DJI_DATA.ser.length} DJI product series.
           </p>
         </div>
 
