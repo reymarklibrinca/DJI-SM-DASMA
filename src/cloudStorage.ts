@@ -7,6 +7,7 @@ import {
   setDoc,
   onSnapshot,
 } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import firebaseConfig from '../firebase-applet-config.json';
 
 export enum OperationType {
@@ -42,13 +43,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Cloud Firestore using provisioned database ID with experimentalForceLongPolling
-// CRITICAL: experimentalForceLongPolling forces HTTPS long-polling instead of WebSockets,
-// preventing 'client is offline' / 'unreachable' errors caused by sandboxed iframes or WebSocket blocks.
+// Initialize Cloud Firestore using the provisioned database ID.
+// Auto-detect falls back to long-polling only when WebSockets are blocked (proxies, iframes).
 let firestoreDb: any;
 try {
   firestoreDb = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
+    experimentalAutoDetectLongPolling: true,
     ignoreUndefinedProperties: true,
   }, (firebaseConfig as any).firestoreDatabaseId);
 } catch (e) {
@@ -57,6 +57,61 @@ try {
 }
 
 export const db = firestoreDb;
+
+
+// ---------------------------------------------------------------------------
+// Firestore does NOT allow arrays directly inside arrays. Sales and inventory
+// are arrays of tuples, so every write used to fail with "Nested arrays are not
+// supported" and the app silently stayed in local/offline mode.
+// Fix: wrap any array that sits directly inside another array as { __a: [...] }
+// on write, and unwrap on read. Legacy/unwrapped data is still read correctly.
+// ---------------------------------------------------------------------------
+const WRAP_KEY = '__a';
+
+export function encodeForCloud(value: any, insideArray = false): any {
+  if (Array.isArray(value)) {
+    const items = value.map((v) => encodeForCloud(v, true));
+    return insideArray ? { [WRAP_KEY]: items } : items;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v !== undefined) out[k] = encodeForCloud(v, false);
+    }
+    return out;
+  }
+  return value;
+}
+
+export function decodeFromCloud(value: any): any {
+  if (Array.isArray(value)) return value.map(decodeFromCloud);
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value);
+    if (keys.length === 1 && keys[0] === WRAP_KEY && Array.isArray(value[WRAP_KEY])) {
+      return value[WRAP_KEY].map(decodeFromCloud);
+    }
+    const out: Record<string, any> = {};
+    for (const k of keys) out[k] = decodeFromCloud(value[k]);
+    return out;
+  }
+  return value;
+}
+
+// Best-effort anonymous sign-in. Never blocks sync if Auth is not enabled.
+let authReady: Promise<void> | null = null;
+function ensureAuth(): Promise<void> {
+  if (!authReady) {
+    authReady = (async () => {
+      try {
+        const auth = getAuth(app);
+        if (!auth.currentUser) await signInAnonymously(auth);
+      } catch (e) {
+        console.info('Anonymous auth unavailable, continuing unauthenticated:', (e as any)?.code || e);
+      }
+    })();
+  }
+  return authReady;
+}
 
 const STORE_PATH = 'store_state';
 const STORE_DOC_ID = 'dasmarinas';
@@ -87,10 +142,11 @@ testConnection().catch(() => {});
 export async function fetchCloudData(): Promise<any | null> {
   const path = `${STORE_PATH}/${STORE_DOC_ID}`;
   try {
+    await ensureAuth();
     const storeDoc = doc(db, STORE_PATH, STORE_DOC_ID);
     const snapshot = await getDoc(storeDoc);
     if (snapshot.exists()) {
-      return snapshot.data();
+      return decodeFromCloud(snapshot.data());
     }
     return null; // document genuinely not created yet
   } catch (err) {
@@ -105,9 +161,9 @@ export async function fetchCloudData(): Promise<any | null> {
 export async function saveCloudData(data: any): Promise<boolean> {
   const path = `${STORE_PATH}/${STORE_DOC_ID}`;
   try {
+    await ensureAuth();
     const storeDoc = doc(db, STORE_PATH, STORE_DOC_ID);
-    // Sanitize data (remove undefined, serialize arrays)
-    const sanitized = JSON.parse(JSON.stringify(data));
+    const sanitized = encodeForCloud(JSON.parse(JSON.stringify(data)));
     sanitized.updatedAt = new Date().toISOString();
     await setDoc(storeDoc, sanitized, { merge: true });
     return true;
@@ -116,8 +172,9 @@ export async function saveCloudData(data: any): Promise<boolean> {
     // One immediate retry on transient network glitch
     try {
       await new Promise((res) => setTimeout(res, 500));
+      await ensureAuth();
       const storeDoc = doc(db, STORE_PATH, STORE_DOC_ID);
-      const sanitized = JSON.parse(JSON.stringify(data));
+      const sanitized = encodeForCloud(JSON.parse(JSON.stringify(data)));
       sanitized.updatedAt = new Date().toISOString();
       await setDoc(storeDoc, sanitized, { merge: true });
       return true;
@@ -132,17 +189,18 @@ export async function saveCloudData(data: any): Promise<boolean> {
  * 3. Real-time live listener (auto-syncs between store devices without page refresh)
  */
 export function subscribeToCloudData(
-  callback: (data: any) => void,
+  callback: (data: any, meta?: { fromCache: boolean }) => void,
   onError?: (err: any) => void
 ): () => void {
   const path = `${STORE_PATH}/${STORE_DOC_ID}`;
   const storeDoc = doc(db, STORE_PATH, STORE_DOC_ID);
 
+  ensureAuth();
   const unsubscribe = onSnapshot(
     storeDoc,
     (snapshot) => {
       if (snapshot.exists()) {
-        callback(snapshot.data());
+        callback(decodeFromCloud(snapshot.data()), { fromCache: snapshot.metadata.fromCache });
       }
     },
     (error) => {

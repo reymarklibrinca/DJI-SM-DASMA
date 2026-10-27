@@ -99,9 +99,24 @@ export function useDjiStore() {
     }
   }, []);
 
+  const localDataRef = useRef(localData);
+  localDataRef.current = localData;
+
   // 1. Firebase Initial Load + Non-Destructive Bidirectional Reconciliation
   useEffect(() => {
     let isMounted = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+
+    // Never stay stuck in local/offline mode: retry with backoff and on reconnect.
+    function scheduleRetry() {
+      if (!isMounted) return;
+      if (retryTimer) clearTimeout(retryTimer);
+      const delay = Math.min(5000 * Math.pow(2, attempt++), 60000);
+      retryTimer = setTimeout(() => { initCloud(); }, delay);
+    }
+    const handleOnline = () => { attempt = 0; initCloud(); };
+    window.addEventListener('online', handleOnline);
 
     async function initCloud() {
       try {
@@ -125,15 +140,19 @@ export function useDjiStore() {
             });
           } else {
             // Document does not exist yet: push current local state to Firestore so nothing is lost
-            lastSavedJsonRef.current = JSON.stringify(localData);
-            saveCloudData(localData).catch((e) => console.warn('Cloud sync init error:', e));
+            lastSavedJsonRef.current = JSON.stringify(localDataRef.current);
+            saveCloudData(localDataRef.current).catch((e) => console.warn('Cloud sync init error:', e));
           }
           isLocalUserActionRef.current = false;
+          attempt = 0;
           setCloudSyncStatus('connected');
         }
       } catch (err) {
         console.error('Error on Firebase startup fetch:', err);
-        if (isMounted) setCloudSyncStatus('offline');
+        if (isMounted) {
+          setCloudSyncStatus('offline');
+          scheduleRetry();
+        }
       } finally {
         if (isMounted) setIsCloudLoaded(true);
       }
@@ -142,9 +161,9 @@ export function useDjiStore() {
     initCloud();
 
     // Listen for live updates across other devices (Phone/PC) with strict anti-clobber protection
-    const unsubscribe = subscribeToCloudData((incoming) => {
+    const unsubscribe = subscribeToCloudData((incoming, meta) => {
       if (!incoming || !isMounted) return;
-      if (isMounted) setCloudSyncStatus('connected');
+      if (!meta?.fromCache) setCloudSyncStatus('connected');
 
       // Check if user recently edited within the last 4000ms, or has unsaved edits pending
       const timeSinceLastEdit = Date.now() - lastLocalEditTimeRef.current;
@@ -177,10 +196,17 @@ export function useDjiStore() {
 
         return reconciled;
       });
+    }, () => {
+      if (isMounted) {
+        setCloudSyncStatus('offline');
+        scheduleRetry();
+      }
     });
 
     return () => {
       isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
+      window.removeEventListener('online', handleOnline);
       if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, [saveToStorage]);
@@ -215,6 +241,7 @@ export function useDjiStore() {
             lastSavedJsonRef.current = JSON.stringify(localData);
           }
           setCloudSyncStatus(ok ? 'connected' : 'offline');
+          if (!ok) setTimeout(() => { isLocalUserActionRef.current = true; setLocalData((d) => ({ ...d })); }, 15000);
         })
         .catch((err) => {
           console.error('Failed to sync to Firebase cloud:', err);
