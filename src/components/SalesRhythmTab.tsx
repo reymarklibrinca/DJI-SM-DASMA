@@ -8,6 +8,7 @@ import {
   dayOffsetToDate,
   formatCurrency,
   formatDate,
+  getPromoterShortName,
 } from '../utils/calculations';
 
 interface SalesRhythmTabProps {
@@ -103,7 +104,7 @@ export const SalesRhythmTab: React.FC<SalesRhythmTabProps> = ({
   const weekendAvg = weekendTotal / weekendCount;
 
   const weekendDelta = calculatePercentChange(weekendAvg, weekdayAvg);
-  const firstNames = staffNames.map((n) => n.split(/[ ,]/)[0]).filter(Boolean);
+  const firstNames = staffNames.map((n) => getPromoterShortName(n)).filter(Boolean);
   const teamLabel =
     firstNames.length > 1
       ? `${firstNames.slice(0, -1).join(', ')} and ${firstNames[firstNames.length - 1]}`

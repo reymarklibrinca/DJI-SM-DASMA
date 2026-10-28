@@ -1,7 +1,16 @@
 import rawData from './djiData.json';
 import { DjiDataset } from '../types';
 
-export const DJI_DATA: DjiDataset = rawData as unknown as DjiDataset;
+export const DEFAULT_STAFF: string[] = [
+  'Lee, Christian Joseph',
+  'Barias, Donna Leah',
+  'Sarabia, Jobert',
+];
+
+export const DJI_DATA: DjiDataset = {
+  ...(rawData as unknown as DjiDataset),
+  staff: DEFAULT_STAFF,
+};
 export * from './masterCatalog';
 
 export const MAIN_PUSH_TARGETS: [name: string, sold: number, target: number][] = [

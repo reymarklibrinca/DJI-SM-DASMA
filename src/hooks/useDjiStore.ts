@@ -1,7 +1,7 @@
 import { fetchCloudData, saveCloudData, subscribeToCloudData } from '../cloudStorage';
 import { reconcileStoreState } from '../utils/syncReconciliation';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { DJI_DATA, ROUTINE_TASKS } from '../data/initialData';
+import { DJI_DATA, ROUTINE_TASKS, DEFAULT_STAFF } from '../data/initialData';
 import {
   LocalStorageState,
   SaleTuple,
@@ -34,10 +34,11 @@ const defaultLocalState: LocalStorageState = {
   leads: {},
   final: {},
   goal: 232258, // Daily target in PHP
-  pm: { 0: 2400000, 1: 2400000, 2: 2400000 }, // Christian, Donna, Jobert
+  pm: { 0: 2400000, 1: 2400000, 2: 2400000 }, // Lee, Christian Joseph; Barias, Donna Leah; Sarabia, Jobert
   mainPushTargets: DEFAULT_MAIN_PUSH_TARGETS,
   mainPushVariants: DEFAULT_MAIN_PUSH_VARIANTS,
   mainPushDividers: { 'OSMO ACTION 6 SERIES': 3, 'OSMO POCKET 4 SERIES': 3, 'NEO 2 SERIES': 3, 'LITO X1 SERIES': 3, 'MINI 5 PRO SERIES': 3 },
+  staff: DEFAULT_STAFF,
 };
 
 export type ActiveTab = 'd' | 'b' | 't' | 'y' | 'r' | 's' | 'p' | 'l' | 'i' | 'c' | 'k' | 'inv';
@@ -61,6 +62,7 @@ export function useDjiStore() {
           mainPushDividers: parsed.mainPushDividers || {},
           inventoryUnits: Array.isArray(parsed.inventoryUnits) ? parsed.inventoryUnits : undefined,
           hasCustomInventory: typeof parsed.hasCustomInventory === 'boolean' ? parsed.hasCustomInventory : false,
+          staff: Array.isArray(parsed.staff) && parsed.staff.length > 0 ? parsed.staff : DEFAULT_STAFF,
         };
       }
     } catch (e) {
@@ -101,6 +103,13 @@ export function useDjiStore() {
 
   const localDataRef = useRef(localData);
   localDataRef.current = localData;
+
+  // Active customizable staff roster
+  const activeStaff = useMemo(() => {
+    return Array.isArray(localData.staff) && localData.staff.length > 0
+      ? localData.staff
+      : DEFAULT_STAFF;
+  }, [localData.staff]);
 
   // 1. Firebase Initial Load + Non-Destructive Bidirectional Reconciliation
   useEffect(() => {
@@ -527,7 +536,7 @@ export function useDjiStore() {
         return updated;
       });
 
-      const staffName = DJI_DATA.staff[items[0]?.staffIndex] || 'Promoter';
+      const staffName = activeStaff[items[0]?.staffIndex] || 'Promoter';
       return {
         success: true,
         count: validSales.length,
@@ -798,8 +807,108 @@ export function useDjiStore() {
         return updated;
       });
     },
-    [saveToStorage]
+    [saveToStorage, recordMutation]
   );
+
+  // Update entire staff/promoters list
+  const updateStaff = useCallback(
+    (newStaff: string[]) => {
+      if (!newStaff || !newStaff.length) return;
+      recordMutation();
+      const cleaned = newStaff.map((s) => s.trim()).filter(Boolean);
+      if (!cleaned.length) return;
+      setLocalData((prev) => {
+        const updated: LocalStorageState = {
+          ...prev,
+          staff: cleaned,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage, recordMutation]
+  );
+
+  // Update a single promoter's name by index
+  const updatePromoterName = useCallback(
+    (index: number, newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed) return;
+      recordMutation();
+      setLocalData((prev) => {
+        const currentList = prev.staff && prev.staff.length > 0 ? [...prev.staff] : [...DEFAULT_STAFF];
+        if (index >= 0 && index < currentList.length) {
+          currentList[index] = trimmed;
+        } else if (index === currentList.length) {
+          currentList.push(trimmed);
+        }
+        const updated: LocalStorageState = {
+          ...prev,
+          staff: currentList,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage, recordMutation]
+  );
+
+  // Add a new promoter
+  const addPromoter = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      recordMutation();
+      setLocalData((prev) => {
+        const currentList = prev.staff && prev.staff.length > 0 ? [...prev.staff] : [...DEFAULT_STAFF];
+        currentList.push(trimmed);
+        const nextPm = { ...(prev.pm || {}) };
+        if (nextPm[currentList.length - 1] === undefined) {
+          nextPm[currentList.length - 1] = 2400000;
+        }
+        const updated: LocalStorageState = {
+          ...prev,
+          staff: currentList,
+          pm: nextPm,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage, recordMutation]
+  );
+
+  // Remove a promoter
+  const removePromoter = useCallback(
+    (index: number) => {
+      recordMutation();
+      setLocalData((prev) => {
+        const currentList = prev.staff && prev.staff.length > 0 ? [...prev.staff] : [...DEFAULT_STAFF];
+        if (currentList.length <= 1) return prev; // Keep at least one promoter
+        currentList.splice(index, 1);
+        const updated: LocalStorageState = {
+          ...prev,
+          staff: currentList,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage, recordMutation]
+  );
+
+  // Reset promoters to default (Lee, Christian Joseph; Barias, Donna Leah; Sarabia, Jobert)
+  const resetStaffToDefault = useCallback(() => {
+    recordMutation();
+    setLocalData((prev) => {
+      const updated: LocalStorageState = {
+        ...prev,
+        staff: [...DEFAULT_STAFF],
+      };
+      saveToStorage(updated);
+      return updated;
+    });
+  }, [saveToStorage, recordMutation]);
 
   // Update Single Main Push Target
   const updateMainPushTarget = useCallback(
@@ -1187,9 +1296,9 @@ export function useDjiStore() {
 
         let soldDetail = '';
         if (staticSold) {
-          soldDetail = `Sold on ${formatDate(staticSold[0])} by ${DJI_DATA.staff[staticSold[1]]}`;
+          soldDetail = `Sold on ${formatDate(staticSold[0])} by ${activeStaff[staticSold[1]] || 'Promoter'}`;
         } else if (localSold) {
-          soldDetail = `Logged sold on ${formatDate(localSold[0])} by ${DJI_DATA.staff[localSold[1]]}`;
+          soldDetail = `Logged sold on ${formatDate(localSold[0])} by ${activeStaff[localSold[1]] || 'Promoter'}`;
         } else if (exact[4] === 'SOLD') {
           soldDetail = 'Marked SOLD in master inventory sheet';
         }
@@ -1258,7 +1367,12 @@ export function useDjiStore() {
   }, [allSales, endOffset, localData.sales, activeUnits, localData.hasCustomInventory, localData.inventoryUnits]);
 
   return {
-    staff: DJI_DATA.staff,
+    staff: activeStaff,
+    updateStaff,
+    updatePromoterName,
+    addPromoter,
+    removePromoter,
+    resetStaffToDefault,
     series: DJI_DATA.ser,
     allSales,
     localSales: localData.sales,

@@ -166,6 +166,11 @@ export default function App() {
             promoterMonthlyTargets={store.promoterMonthlyTargets}
             onUpdatePromoterTarget={store.updatePromoterTarget}
             localLeads={store.localLeads}
+            onUpdateStaff={store.updateStaff}
+            onUpdatePromoterName={store.updatePromoterName}
+            onAddPromoter={store.addPromoter}
+            onRemovePromoter={store.removePromoter}
+            onResetStaffToDefault={store.resetStaffToDefault}
           />
         )}
 

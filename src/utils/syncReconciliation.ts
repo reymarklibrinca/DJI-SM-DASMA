@@ -315,6 +315,14 @@ export function reconcileStoreState(
       ? { ...(remote.pm || {}), ...local.pm }
       : { ...(local.pm || {}), ...(remote.pm || {}) };
 
+  // 9. Staff / Promoters Reconcile
+  const staff =
+    preferLocal && Array.isArray(local.staff) && local.staff.length > 0
+      ? local.staff
+      : Array.isArray(remote.staff) && remote.staff.length > 0
+      ? remote.staff
+      : local.staff;
+
   const reconciled: LocalStorageState = {
     sales: mergedSales,
     tasks: mergedTasks,
@@ -327,6 +335,7 @@ export function reconcileStoreState(
     mainPushDividers: mergedDividers,
     inventoryUnits: mergedInventoryUnits,
     hasCustomInventory: hasCustom,
+    staff,
   };
 
   return {

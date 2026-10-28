@@ -1156,3 +1156,23 @@ export function calculatePromoterMonthPerformance(
   });
 }
 
+/**
+ * Extracts a friendly short / first name from a promoter's display name.
+ * Handles "Lee, Christian Joseph" -> "Christian"
+ * Handles "Christian Lee" -> "Christian"
+ * Handles "Christian" -> "Christian"
+ */
+export function getPromoterShortName(fullName: string): string {
+  if (!fullName) return '';
+  const trimmed = fullName.trim();
+  if (trimmed.includes(',')) {
+    const afterComma = trimmed.split(',')[1]?.trim();
+    if (afterComma) {
+      const firstWord = afterComma.split(/\s+/)[0];
+      if (firstWord) return firstWord;
+    }
+  }
+  const firstWord = trimmed.split(/\s+/)[0];
+  return firstWord || trimmed;
+}
+

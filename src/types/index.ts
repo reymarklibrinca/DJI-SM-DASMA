@@ -60,6 +60,7 @@ export interface LocalStorageState {
   mainPushDividers?: Record<string, number>; // categoryName -> number of persons to divide target by (e.g. 3)
   inventoryUnits?: UnitTuple[]; // Custom imported or edited serialized inventory
   hasCustomInventory?: boolean; // When true, inventoryUnits (even if empty []) is authoritative and will not revert to initial seed
+  staff?: string[]; // Customizable list of store promoter names
 }
 
 export interface VariantBreakdown {
