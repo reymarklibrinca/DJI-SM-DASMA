@@ -1,0 +1,15 @@
+// STRICT VERSION: requires sign-in. Use only after enabling
+// Firebase Console > Authentication > Sign-in method > Anonymous.
+// The app already signs in anonymously when available (src/cloudStorage.ts).
+// To use: copy this file over firestore.rules and publish it.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { allow read, write: if false; }
+    match /store_state/dasmarinas {
+      allow get: if request.auth != null;
+      allow create, update: if request.auth != null && request.resource.data is map;
+      allow delete: if false;
+    }
+  }
+}

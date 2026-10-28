@@ -1110,6 +1110,28 @@ export function useDjiStore() {
     [saveToStorage]
   );
 
+  // Delete many units at once by Serial Number (used by "wipe filtered" in the Stock tab)
+  const deleteInventoryUnits = useCallback(
+    (serialNumbers: string[]) => {
+      if (!serialNumbers.length) return;
+      recordMutation();
+      const drop = new Set(serialNumbers.map((s) => s.trim().toUpperCase()));
+      setLocalData((prev) => {
+        const currentList = (prev.hasCustomInventory || prev.inventoryUnits !== undefined)
+          ? (prev.inventoryUnits || [])
+          : DJI_DATA.units;
+        const updated: LocalStorageState = {
+          ...prev,
+          inventoryUnits: currentList.filter((u) => !drop.has(u[0].toUpperCase())),
+          hasCustomInventory: true,
+        };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage]
+  );
+
   // Reset inventory back to master baseline
   const resetInventoryToMaster = useCallback(() => {
     recordMutation();
@@ -1269,6 +1291,7 @@ export function useDjiStore() {
     deleteInventoryUnit,
     resetInventoryToMaster,
     deleteAllInventory,
+    deleteInventoryUnits,
     isCloudLoaded,
     cloudSyncStatus,
     syncNow,

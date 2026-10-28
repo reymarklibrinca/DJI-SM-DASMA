@@ -14,19 +14,19 @@ interface SalesRhythmTabProps {
   sales: SaleTuple[];
   endOffset: number;
   periodRange: PeriodRange;
+  staffNames?: readonly string[];
 }
 
 export const SalesRhythmTab: React.FC<SalesRhythmTabProps> = ({
   sales,
   endOffset,
   periodRange,
+  staffNames = [],
 }) => {
   const [tooltip, setTooltip] = useState<{ date: string; sa: number } | null>(null);
 
   const allAgg = aggregateSales(sales, 0, endOffset);
   const periodAgg = aggregateSales(sales, periodRange.a, periodRange.b);
-
-  const maxHistoricalDaily = Math.max(...allAgg.day, 1);
 
   // Week ending offset (aligned to current endOffset's week)
   const endD = dayOffsetToDate(endOffset);
@@ -57,6 +57,15 @@ export const SalesRhythmTab: React.FC<SalesRhythmTabProps> = ({
 
     calendarWeeks.push({ weekStartStr, days });
   }
+
+  // Colour scale follows the weeks on screen, so one huge old day doesn't wash everything out
+  const visibleMax = Math.max(
+    1,
+    ...calendarWeeks.flatMap((w) => w.days.map((d) => d.salesVal ?? 0))
+  );
+
+  // Compact label: whole k above 10k, one decimal below it, so small days never read "0k"
+  const fmtK = (v: number) => (v >= 10000 ? `${Math.round(v / 1000)}k` : `${(v / 1000).toFixed(1)}k`);
 
   // Day of week average revenue in current period
   // Order: Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), Sat(6), Sun(0)
@@ -94,6 +103,11 @@ export const SalesRhythmTab: React.FC<SalesRhythmTabProps> = ({
   const weekendAvg = weekendTotal / weekendCount;
 
   const weekendDelta = calculatePercentChange(weekendAvg, weekdayAvg);
+  const firstNames = staffNames.map((n) => n.split(/[ ,]/)[0]).filter(Boolean);
+  const teamLabel =
+    firstNames.length > 1
+      ? `${firstNames.slice(0, -1).join(', ')} and ${firstNames[firstNames.length - 1]}`
+      : firstNames[0] || 'the full team';
 
   return (
     <div className="space-y-6">
@@ -106,7 +120,7 @@ export const SalesRhythmTab: React.FC<SalesRhythmTabProps> = ({
               10-Week Sales Velocity Matrix
             </h3>
             <p className="text-xs text-slate-500">
-              Values displayed in thousands of Pesos (₱k). Darker blue signifies higher revenue.
+              Values in thousands of pesos (₱k). Darker blue means higher revenue. Tap or hover a day for the exact amount. On-hold sales are not included.
             </p>
           </div>
           {tooltip && (
@@ -144,12 +158,25 @@ export const SalesRhythmTab: React.FC<SalesRhythmTabProps> = ({
                       );
                     }
 
-                    const intensity = Math.min(1, day.salesVal / (maxHistoricalDaily * 0.8));
+                    const intensity = Math.min(1, day.salesVal / (visibleMax * 0.8));
                     const isZero = day.salesVal === 0;
 
                     return (
                       <div
                         key={dIdx}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          setTooltip({
+                            date: formatDate(day.offset),
+                            sa: day.salesVal || 0,
+                          })
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setTooltip({ date: formatDate(day.offset), sa: day.salesVal || 0 });
+                          }
+                        }}
                         onMouseEnter={() =>
                           setTooltip({
                             date: formatDate(day.offset),
@@ -170,7 +197,7 @@ export const SalesRhythmTab: React.FC<SalesRhythmTabProps> = ({
                             : `rgba(37, 99, 235, ${Math.max(0.12, intensity)})`,
                         }}
                       >
-                        {isZero ? '0' : `${Math.round(day.salesVal / 1000)}k`}
+                        {isZero ? '0' : fmtK(day.salesVal)}
                       </div>
                     );
                   })}
@@ -245,11 +272,14 @@ export const SalesRhythmTab: React.FC<SalesRhythmTabProps> = ({
               <p className="font-semibold text-slate-900 mb-1">
                 Scheduling & Roster Recommendation:
               </p>
-              Weekends generate{' '}
+              {weekendDelta >= 0 ? 'Weekends' : 'Weekdays'} generate{' '}
               <strong className={weekendDelta >= 0 ? 'text-emerald-700' : 'text-slate-900'}>
-                {Math.abs(weekendDelta).toFixed(1)}% {weekendDelta >= 0 ? 'more' : 'less'}
+                {(weekendDelta >= 0 ? weekendDelta : calculatePercentChange(weekdayAvg, weekendAvg)).toFixed(1)}% more
               </strong>{' '}
-              revenue per day than weekdays. Ensure all 3 promoters (Christian, Donna, Jobert) are present on Saturdays and Sundays during peak mall hours (2pm–8pm) for maximum conversion.
+              revenue per day than {weekendDelta >= 0 ? 'weekdays' : 'weekends'}.{' '}
+              {weekendDelta >= 0
+                ? `Make sure ${teamLabel} are on shift on Saturdays and Sundays.`
+                : `Prioritize full coverage from ${teamLabel} on Monday to Friday, and keep weekend shifts lean unless a promo is running.`}
             </div>
           </div>
         </div>

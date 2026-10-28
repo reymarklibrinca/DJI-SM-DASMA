@@ -154,6 +154,7 @@ export default function App() {
             sales={store.allSales}
             endOffset={store.endOffset}
             periodRange={store.periodRange}
+            staffNames={store.staff}
           />
         )}
 
@@ -186,7 +187,12 @@ export default function App() {
         )}
 
         {store.activeTab === 'i' && (
-          <StockTab stockMetrics={store.stockMetrics} units={store.activeUnits} />
+          <StockTab
+            stockMetrics={store.stockMetrics}
+            units={store.activeUnits}
+            onWipeStock={store.deleteAllInventory}
+            onDeleteUnits={store.deleteInventoryUnits}
+          />
         )}
 
         {store.activeTab === 'inv' && (

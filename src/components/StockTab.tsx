@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  Trash2,
 } from 'lucide-react';
 import { DJI_DATA } from '../data/initialData';
 import { StockSeriesCover, UnitTuple } from '../types';
@@ -21,9 +22,11 @@ interface StockTabProps {
     totalSrpValue: number;
   };
   units?: UnitTuple[];
+  onWipeStock?: () => void;
+  onDeleteUnits?: (serials: string[]) => void;
 }
 
-export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units }) => {
+export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units, onWipeStock, onDeleteUnits }) => {
   // Sort series rows by days of cover (lowest cover first)
   const sortedSeriesRows = useMemo(() => {
     return [...stockMetrics.rows].sort((a, b) => {
@@ -40,6 +43,11 @@ export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 25;
 
+  // Wipe stock (confirmation panel)
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wipeScope, setWipeScope] = useState<'all' | 'filtered'>('all');
+  const [wipeText, setWipeText] = useState('');
+
   const currentUnitsList = units || DJI_DATA.units;
 
   const filteredUnits = useMemo(() => {
@@ -54,7 +62,7 @@ export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units }) => {
       const ean = (u[5] || '').toUpperCase();
       return sn.includes(q) || name.includes(q) || ean.includes(q);
     });
-  }, [unitSearch, seriesFilter, statusFilter]);
+  }, [currentUnitsList, unitSearch, seriesFilter, statusFilter]);
 
   const totalPages = Math.ceil(filteredUnits.length / pageSize) || 1;
   const paginatedUnits = useMemo(() => {
@@ -265,8 +273,94 @@ export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units }) => {
               <option value="IN STOCK">In Stock Only</option>
               <option value="SOLD">Sold Only</option>
             </select>
+
+            {(onWipeStock || onDeleteUnits) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setWipeOpen((o) => !o);
+                  setWipeText('');
+                  setWipeScope('all');
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition-all cursor-pointer"
+                title="Wipe stock records"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Wipe Stock</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {wipeOpen && (() => {
+          const isFiltered = filteredUnits.length < currentUnitsList.length;
+          const scope = isFiltered ? wipeScope : 'all';
+          const count = scope === 'all' ? currentUnitsList.length : filteredUnits.length;
+          const canWipe = wipeText.trim().toUpperCase() === 'WIPE' && count > 0;
+          return (
+            <div className="mb-4 p-4 rounded-xl border border-rose-300 bg-rose-50 space-y-3">
+              <p className="text-sm font-bold text-rose-900">Wipe stock records</p>
+              <p className="text-xs text-rose-800">
+                This permanently removes units from your inventory registry and syncs to the cloud, so other devices
+                will see it too. Sales history is not touched. You can restore the master list later from the Import
+                Inventory tab.
+              </p>
+
+              {isFiltered && (
+                <div className="space-y-1.5 text-xs text-slate-800">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" checked={scope === 'filtered'} onChange={() => setWipeScope('filtered')} />
+                    <span>Only the {filteredUnits.length.toLocaleString()} units matching the current search or filters</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" checked={scope === 'all'} onChange={() => setWipeScope('all')} />
+                    <span>All {currentUnitsList.length.toLocaleString()} units</span>
+                  </label>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={wipeText}
+                  onChange={(e) => setWipeText(e.target.value)}
+                  placeholder="Type WIPE to confirm"
+                  className="px-3 py-1.5 text-xs bg-white border border-rose-300 rounded-lg text-slate-900 w-44"
+                />
+                <button
+                  type="button"
+                  disabled={!canWipe}
+                  onClick={() => {
+                    if (scope === 'all') {
+                      onWipeStock?.();
+                    } else {
+                      onDeleteUnits?.(filteredUnits.map((u) => u[0]));
+                    }
+                    setWipeOpen(false);
+                    setWipeText('');
+                    setUnitSearch('');
+                    setSeriesFilter('');
+                    setStatusFilter('ALL');
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Wipe {count.toLocaleString()} {count === 1 ? 'unit' : 'units'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWipeOpen(false);
+                    setWipeText('');
+                  }}
+                  className="px-3 py-1.5 text-xs rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
