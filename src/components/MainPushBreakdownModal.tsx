@@ -189,7 +189,7 @@ export const MainPushBreakdownModal: React.FC<MainPushBreakdownModalProps> = ({
                 Store Targets & Quota
               </span>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Current Month: ${activeMonthName} ${activeYearNum}
+                Current Month: {activeMonthName} {activeYearNum}
               </span>
               <span className="text-xs text-slate-400">DJI SM Dasmariñas</span>
             </div>

@@ -60,6 +60,7 @@ import {
 import { MainPushBreakdownModal } from './MainPushBreakdownModal';
 import { ImportMainPushTargetsModal } from './ImportMainPushTargetsModal';
 import { EditMainPushTargetsModal } from './EditMainPushTargetsModal';
+import { MainPushCard } from './MainPushCard';
 
 import { SwipeableCard } from './dashboard/SwipeableCard';
 import { DEFAULT_INVENTORY_ITEMS, DEFAULT_DASMARINAS_WEATHER } from './dashboard/dashboardData';
@@ -86,6 +87,15 @@ interface DashboardTabProps {
   onUpdateMainPushTargets?: (newTargets: Record<string, number>, newVariants?: Record<string, string[]>, newDividers?: Record<string, number>) => void;
   onResetMainPushTargets?: () => void;
   onDeleteMainPushTarget?: (modelName: string) => void;
+  onAddSale?: (
+    dayOffset: number,
+    staffIndex: number,
+    seriesIndex: number,
+    amount: number,
+    units?: number,
+    serialNumber?: string,
+    leadType?: number
+  ) => { success: boolean; message: string };
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -102,6 +112,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onUpdateMainPushTargets,
   onResetMainPushTargets,
   onDeleteMainPushTarget,
+  onAddSale,
 }) => {
   const [isMainPushModalOpen, setIsMainPushModalOpen] = useState(false);
   const [isImportTargetsOpen, setIsImportTargetsOpen] = useState(false);
@@ -712,219 +723,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
       {/* Main Push & Store Gaps Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Main Push Progress Card - Clickable to open breakdown */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 md:p-6 transition-all hover:border-blue-300">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-slate-100 pb-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsMainPushModalOpen(true)}
-                  className="text-base font-bold text-slate-900 hover:text-blue-600 flex items-center gap-1.5 group cursor-pointer text-left"
-                >
-                  <Target className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" />
-                  <span>Main Push Targets</span>
-                  <Maximize2 className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors ml-1" />
-                </button>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 uppercase tracking-wide">
-                  Store Priority
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Focus models tracking towards quota · <button type="button" onClick={() => setIsMainPushModalOpen(true)} className="text-blue-600 font-semibold hover:underline cursor-pointer">Click to view Target & Remaining per Promoter</button>
-              </p>
-            </div>
-
-            {/* Quick Mode Toggle & Import Targets (Excel Template) Action */}
-            <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
-              {onUpdateMainPushTargets && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditTargetsOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer shadow-2xs"
-                  title="Edit Main Push Targets and Subvariants"
-                >
-                  <Sliders className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Edit Targets</span>
-                </button>
-              )}
-              {onUpdateMainPushTargets && (
-                <button
-                  type="button"
-                  onClick={() => setIsImportTargetsOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer shadow-2xs"
-                  title="Import Main Push Monthly Targets using Excel Template (.xlsx)"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Import Targets (Excel)</span>
-                </button>
-              )}
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs">
-                <button
-                  type="button"
-                  onClick={() => setMainPushCardMode('store')}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                    mainPushCardMode === 'store'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Store Total
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMainPushCardMode('promoters')}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                    mainPushCardMode === 'promoters'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Per Promoter
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Card View 1: Clean Store Total Meters */}
-          {mainPushCardMode === 'store' && (
-            <div className="space-y-3">
-              {pushData.categories.map((cat) => {
-                const pct = Math.min(100, cat.storePct);
-                return (
-                  <div
-                    key={cat.name}
-                    className="p-3 bg-slate-50/70 hover:bg-slate-50 rounded-xl border border-slate-100 transition-colors space-y-2"
-                  >
-                    <div className="flex justify-between items-center text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">{cat.name}</span>
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
-                          ÷{cat.personDivider} persons ({cat.targetPerPromoter} ea)
-                        </span>
-                        {cat.storeRemaining === 0 ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            Target Hit!
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-100">
-                            {cat.storeRemaining} remaining
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-slate-900">
-                          {cat.storeSold}{' '}
-                          <span className="text-slate-400 font-normal">/ {cat.storeTarget} units</span>
-                        </span>
-                        <span
-                          className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
-                            pct >= 80
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : pct >= 50
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {pct.toFixed(0)}%
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="w-full bg-slate-200/80 h-2.5 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-600' : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Card View 2: Per-Promoter Target & Remaining Matrix */}
-          {mainPushCardMode === 'promoters' && (
-            <div className="space-y-3">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-600 uppercase font-semibold text-[10px] border-b border-slate-200">
-                    <tr>
-                      <th className="py-1.5 px-2 min-w-[140px]">Focus Model</th>
-                      {staffList.map((st) => (
-                        <th key={st} className="py-1.5 px-2 text-center border-l border-slate-200">
-                          {st}
-                          <span className="block text-[9px] text-slate-400 font-normal">
-                            (Tgt/Sold/Rem)
-                          </span>
-                        </th>
-                      ))}
-                      <th className="py-1.5 px-2 text-right">Store Rem</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {pushData.categories.map((c) => (
-                      <tr key={c.name} className="hover:bg-slate-50">
-                        <td className="py-2 px-2 font-bold text-slate-900 min-w-[140px]">{c.name}</td>
-                        {c.promoters.map((p) => (
-                          <td key={p.staffIndex} className="py-2 px-2 text-center border-l border-slate-100">
-                            <span className="text-slate-400">{p.target}</span>
-                            <span className="text-slate-300">/</span>
-                            <span className="font-bold text-slate-900">{p.sold}</span>
-                            <span className="text-slate-300">/</span>
-                            <span className={`font-bold ${p.remaining === 0 ? 'text-emerald-600' : 'text-amber-700'}`}>
-                              {p.remaining}
-                            </span>
-                          </td>
-                        ))}
-                        <td className="py-2 px-2 text-right font-extrabold text-rose-600">
-                          {c.storeRemaining === 0 ? (
-                            <span className="text-emerald-600">✓ Met</span>
-                          ) : (
-                            `${c.storeRemaining} rem`
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-slate-100 font-bold text-[11px] text-slate-900 border-t border-slate-200">
-                      <td className="py-2 px-2">Total Units</td>
-                      {pushData.totalPerPromoter.map((tp) => (
-                        <td key={tp.staffIndex} className="py-2 px-2 text-center border-l border-slate-200">
-                          <span>{tp.target}</span>
-                          <span className="text-slate-400">/</span>
-                          <span className="text-blue-700 font-extrabold">{tp.sold}</span>
-                          <span className="text-slate-400">/</span>
-                          <span className="text-rose-700 font-extrabold">{tp.remaining}</span>
-                        </td>
-                      ))}
-                      <td className="py-2 px-2 text-right text-rose-700 font-black">
-                        {pushData.totalStoreRemaining} rem
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Interactive Trigger Button in Card Footer */}
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setIsMainPushModalOpen(true)}
-              className="w-full py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Target className="w-3.5 h-3.5 text-blue-600" />
-              <span>Click to view Target, Remaining & Current Month Performance per Promoter</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
-            </button>
-          </div>
-        </div>
+        {/* Main Push Progress Card - Designed directly from Master Series & Gemini code */}
+        <MainPushCard
+          sales={sales}
+          staffList={staffList}
+          endOffset={endOffset}
+          mainPushTargets={mainPushTargets}
+          mainPushVariants={mainPushVariants}
+          mainPushDividers={mainPushDividers}
+          onUpdateMainPushTargets={onUpdateMainPushTargets}
+          onResetMainPushTargets={onResetMainPushTargets}
+          onDeleteTarget={onDeleteMainPushTarget}
+          onAddSale={onAddSale}
+          onOpenExcelImport={onUpdateMainPushTargets ? () => setIsImportTargetsOpen(true) : undefined}
+          onOpenFullModal={() => setIsMainPushModalOpen(true)}
+        />
 
         {/* Inventory Watch Only OR Flight Weather Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 md:p-6 flex flex-col justify-between">

@@ -63,8 +63,11 @@ export const Navigation: React.FC<NavigationProps> = ({
     <div className="bg-slate-50 border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-          {/* All Visible Tabs (Wrapping so all are visible simultaneously) */}
-          <nav className="flex flex-wrap items-center gap-1.5" aria-label="Store navigation tabs">
+          {/* Responsive Navigation Tabs (Horizontal scroll on mobile, flex-wrap on desktop) */}
+          <nav
+            className="flex items-center gap-1.5 overflow-x-auto pb-1 xl:pb-0 scrollbar-none flex-nowrap xl:flex-wrap shrink-0 max-w-full"
+            aria-label="Store navigation tabs"
+          >
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -72,14 +75,14 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <button
                   key={tab.id}
                   onClick={() => onSelectTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shrink-0 ${
                     isActive
                       ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-white border border-slate-200/80 text-slate-600 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300'
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                  <span>{tab.label}</span>
+                  <span className="whitespace-nowrap">{tab.label}</span>
                 </button>
               );
             })}

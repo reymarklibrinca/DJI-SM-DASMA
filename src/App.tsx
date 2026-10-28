@@ -82,6 +82,7 @@ export default function App() {
             onUpdateMainPushTargets={store.updateAllMainPushTargets}
             onResetMainPushTargets={store.resetMainPushTargets}
             onDeleteMainPushTarget={store.deleteMainPushTarget}
+            onAddSale={store.addSale}
           />
         )}
 

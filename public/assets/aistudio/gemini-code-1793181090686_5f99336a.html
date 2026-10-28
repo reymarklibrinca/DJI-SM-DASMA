@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Main Push Targets – Store & Promoter Tracker</title>
+<style>
+:root{
+  --bg:#f8fafc;--card:#ffffff;--text:#0f172a;--muted:#64748b;--faint:#94a3b8;
+  --line:#e2e8f0;--bar:#e2e8f0;--seg:#f1f5f9;--blue:#2563eb;--green:#10b981;
+  --amber:#f59e0b;--rose:#ef4444;--hover:#eff6ff;color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1220;--card:#111a2e;--text:#f1f5f9;--muted:#94a3b8;--faint:#64748b;
+    --line:#1e293b;--bar:#1e293b;--seg:#1e293b;--hover:#16233f;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1220;--card:#111a2e;--text:#f1f5f9;--muted:#94a3b8;--faint:#64748b;
+  --line:#1e293b;--bar:#1e293b;--seg:#1e293b;--hover:#16233f;color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:calc(24px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px));
+  display:flex;justify-content:center;
+}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:22px;width:100%;max-width:680px;box-shadow:0 4px 12px rgba(0,0,0,.04);
+}
+.head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
+h1{font-size:17px;font-weight:700;margin:0;display:flex;gap:8px;align-items:center}
+.sub{font-size:12px;color:var(--muted);margin:3px 0 0}
+.icons{display:flex;gap:4px}
+.ib{
+  border:0;background:none;color:var(--muted);padding:8px;border-radius:8px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;
+}
+.ib:hover{background:var(--hover);color:var(--blue)}
+svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.seg{display:flex;gap:4px;background:var(--seg);padding:3px;border-radius:8px;margin-bottom:16px;width:fit-content}
+.seg button{
+  border:0;background:none;color:var(--muted);font:600 12px system-ui;
+  padding:6px 12px;border-radius:6px;cursor:pointer;transition:all .15s ease;
+}
+.seg button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.sum{background:var(--bg);border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid var(--line)}
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.sg small{display:block;font-size:10px;color:var(--faint);text-transform:uppercase;font-weight:700;letter-spacing:.04em}
+.sg b{font-size:20px;font-weight:800}
+.row{padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0;padding-bottom:0}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.name{font-weight:700;font-size:14px}
+.nums{font-weight:800;white-space:nowrap}
+.nums i{font-style:normal;font-weight:400;color:var(--faint)}
+.nums b{font-size:12px;color:var(--muted);margin-left:8px}
+.bar{height:8px;background:var(--bar);border-radius:99px;overflow:hidden;margin:8px 0 6px}
+.bar div{height:100%;border-radius:99px;transition:width .4s ease}
+.meta{display:flex;justify-content:space-between;font-size:11px;color:var(--faint)}
+.meta .r{font-weight:600;color:var(--muted)}.meta .ok{font-weight:600;color:var(--green)}
+.unit{
+  font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--faint);margin:18px 0 4px;display:flex;justify-content:space-between;
+}
+.unit:first-child{margin-top:0}
+.legend{font-size:11px;color:var(--muted);margin:0 0 10px}
+.wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{font-size:10px;text-transform:uppercase;color:var(--muted);text-align:center;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;text-align:center;border-left:1px solid var(--line);border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;border-left:0;font-weight:700;min-width:140px}
+th:last-child,td:last-child{text-align:right}
+.s{font-weight:700}.rem{font-weight:700;color:#d97706}.done{font-weight:700;color:var(--green)}
+tfoot td{font-weight:800;border-bottom:0;background:rgba(250,204,21,.16)}
+.foot{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.link{border:0;background:none;color:var(--blue);font:700 12px system-ui;cursor:pointer;display:flex;gap:4px;align-items:center;padding:0}
+.note{font-size:11px;color:var(--faint);text-align:center;margin-top:14px}
+.ov{position:fixed;inset:0;background:rgba(15,23,42,.6);display:flex;align-items:flex-end;justify-content:center;z-index:40;padding:0;backdrop-filter:blur(2px)}
+.ov[hidden]{display:none}
+.md{
+  background:var(--card);color:var(--text);width:100%;max-width:660px;max-height:92%;
+  border-radius:18px 18px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media(min-width:700px){.ov{align-items:center}.md{border-radius:18px;max-height:86%}}
+.mh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.mh b{font-size:15px}.mh p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+#edb,#logb{overflow-y:auto;padding:14px 20px;flex:1}
+.mf{display:flex;gap:8px;justify-content:space-between;padding:12px 20px;border-top:1px solid var(--line)}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);font:600 13px system-ui;padding:8px 14px;border-radius:8px;cursor:pointer}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+.er{padding:12px 0;border-bottom:1px solid var(--line)}
+.erh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.erh b{font-size:13px;flex:1 1 150px}
+.u{font-size:10px;color:var(--faint);text-transform:uppercase}
+.tg{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
+input[type=number]{width:64px;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font:600 13px system-ui}
+.chip{border:0;background:var(--hover);color:var(--blue);font:600 12px system-ui;padding:6px 10px;border-radius:99px;cursor:pointer}
+.pk{margin-top:10px}.pk input[type=search],#addsel,.fsel{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:13px system-ui}
+.pl{max-height:180px;overflow-y:auto;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+.pi{display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:12px;cursor:pointer}.pi small{display:block;color:var(--faint);font-size:10px}
+.add{display:flex;gap:8px;padding:12px 0}.add select{flex:1}
+.nm{flex:1 1 150px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font:700 13px system-ui}
+.ea{font-size:11px;color:var(--muted);font-weight:600}
+.ms{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font:600 12px system-ui}
+.form-grp{margin-bottom:14px}.form-grp label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<main class="card">
+  <div class="head">
+    <div>
+      <h1>
+        <svg style="width:20px;height:20px;color:var(--blue)" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        Main Push Targets
+      </h1>
+      <p class="sub">Focus models vs. monthly quota · SM City Dasmariñas</p>
+    </div>
+    <div class="icons">
+      <button class="ib" id="btn-theme" title="Toggle color theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+      <button class="ib" id="btn-log" title="Quick log sale" aria-label="Quick log sale">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+      </button>
+      <button class="ib" id="edit" title="Edit targets and series allocation" aria-label="Edit targets">
+        <svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="seg" id="seg">
+    <button class="on" data-m="store">Store Total</button>
+    <button data-m="promoters">Per Promoter</button>
+  </div>
+
+  <div id="view"></div>
+
+  <div class="foot">
+    <button class="link" id="more">View full breakdown per promoter <svg viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    <span style="font-size:11px;color:var(--faint)" id="active-staff-label">3 Promoters on floor</span>
+  </div>
+  <p class="note">Direct sync with active inventory & sales quotas (DJI Store Dasma).</p>
+</main>
+
+<!-- Target Editor Modal -->
+<div class="ov" id="ov" hidden>
+  <div class="md" role="dialog" aria-modal="true" aria-label="Edit Main Push targets">
+    <div class="mh">
+      <div>
+        <b>Edit Main Push Targets</b>
+        <p>Set targets per promoter, total distribution modes, and associated catalog items.</p>
+      </div>
+      <button class="ib" id="x-cancel">✕</button>
+    </div>
+    <div id="edb"></div>
+    <div class="mf">
+      <button class="btn" id="reset">Reset to Source</button>
+      <span>
+        <button class="btn" id="cancel">Cancel</button> 
+        <button class="btn pri" id="save">Save Changes</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Log Sale Modal -->
+<div class="ov" id="ov-log" hidden>
+  <div class="md" role="dialog" aria-modal="true" aria-label="Log Floor Sale">
+    <div class="mh">
+      <div>
+        <b>Log Floor Sale</b>
+        <p>Record a completed unit sale directly to a promoter's tally.</p>
+      </div>
+      <button class="ib" id="x-log-cancel">✕</button>
+    </div>
+    <div id="logb">
+      <div class="form-grp">
+        <label>Promoter</label>
+        <select id="log-staff" class="fsel"></select>
+      </div>
+      <div class="form-grp">
+        <label>Product Series</label>
+        <select id="log-series" class="fsel"></select>
+      </div>
+      <div class="form-grp">
+        <label>Units Sold</label>
+        <input type="number" id="log-units" class="fsel" value="1" min="1" max="50">
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn" id="cancel-log">Cancel</button>
+      <button class="btn pri" id="submit-log">Confirm Sale</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Master Data JSON integrated directly
+var SOURCE_DATA = {
+  "title": "Main Push Targets",
+  "team": [
+    "Lee, Christian Joseph",
+    "Barias, Donna Leah",
+    "Sarabia, Jobert"
+  ],
+  "series": [
+    {
+      "name": "MINI 5 PRO SERIES",
+      "unit": "Drone",
+      "target_mode": "total_split_equally",
+      "store_target": 9,
+      "persons": 3,
+      "target_per_person": 3,
+      "sold_per_person": {
+        "Lee, Christian Joseph": 2,
+        "Barias, Donna Leah": 0,
+        "Sarabia, Jobert": 4
+      },
+      "total_sold": 6,
+      "remaining": 3,
+      "catalog_series": ["MINI 5 PRO SERIES"],
+      "products": [
+        "DJI Mini 5 Pro Fly More Combo Plus (DJI RC2)",
+        "DJI Mini 5 Pro Fly More Combo (DJI RC2)",
+        "DJI Mini 5 Pro Fly More Combo (DJI RC-N3)",
+        "DJI Mini 5 Pro"
+      ]
+    },
+    {
+      "name": "NEO SERIES",
+      "unit": "Drone",
+      "target_mode": "total_split_equally",
+      "store_target": 18,
+      "persons": 3,
+      "target_per_person": 6,
+      "sold_per_person": {
+        "Lee, Christian Joseph": 4,
+        "Barias, Donna Leah": 4,
+        "Sarabia, Jobert": 6
+      },
+      "total_sold": 14,
+      "remaining": 4,
+      "catalog_series": ["NEO SERIES"],
+      "products": [
+        "DJI NEO MOTION FLY MORE COMBO",
+        "DJI NEO FLY MORE COMBO",
+        "DJI NEO",
+        "DJI NEO COMBO (GLOBAL)"
+      ]
+    },
+    {
+      "name": "LITO X1 SERIES",
+      "unit": "Drone",
+      "target_mode": "total_split_equally",
+      "store_target": 15,
+      "persons": 3,
+      "target_per_person": 5,
+      "sold_per_person": {
+        "Lee, Christian Joseph": 5,
+        "Barias, Donna Leah": 0,
+        "Sarabia, Jobert": 6
+      },
+      "total_sold": 11,
+      "remaining": 4,
+      "catalog_series": ["LITO X1 SERIES"],
+      "products": [
+        "DJI Lito X1 Fly More Combo Plus (DJI RC 2)",
+        "DJI Lito X1 Fly More Combo (DJI RC 2)",
+        "DJI Lito X1 Fly More Combo (DJI RC-N3)",
+        "DJI Lito X1"
+      ]
+    },
+    {
+      "name": "OA SERIES",
+      "unit": "Handheld",
+      "target_mode": "total_split_equally",
+      "store_target": 54,
+      "persons": 3,
+      "target_per_person": 18,
+      "sold_per_person": {
+        "Lee, Christian Joseph": 13,
+        "Barias, Donna Leah": 6,
+        "Sarabia, Jobert": 15
+      },
+      "total_sold": 34,
+      "remaining": 20,
+      "catalog_series": [
+        "OSMO ACTION 6 SERIES",
+        "OSMO ACTION 5 PRO SERIES",
+        "OSMO ACTION 4 SERIES"
+      ],
+      "products": [
+        "Osmo Action 6 Adventure Combo",
+        "Osmo Action 6 Street Photography Gift Set",
+        "Osmo Action 6 Standard Combo",
+        "Osmo Action 5 PRO Adventure Combo",
+        "Osmo Action 5 PRO Standard Combo",
+        "Osmo Action 4 Adventure Combo",
+        "Osmo Action 4 Standard Combo"
+      ]
+    },
+    {
+      "name": "POCKET 4 SERIES",
+      "unit": "Handheld",
+      "target_mode": "total_split_equally",
+      "store_target": 45,
+      "persons": 3,
+      "target_per_person": 15,
+      "sold_per_person": {
+        "Lee, Christian Joseph": 4,
+        "Barias, Donna Leah": 12,
+        "Sarabia, Jobert": 8
+      },
+      "total_sold": 24,
+      "remaining": 21,
+      "catalog_series": [
+        "OSMO POCKET 4 SERIES",
+        "OSMO POCKET 4P SERIES"
+      ],
+      "products": [
+        "Osmo Pocket 4 Creator Combo",
+        "Osmo Pocket 4 Standard Combo",
+        "Osmo Pocket 4P Vlog Combo",
+        "Osmo Pocket 4P Standard Combo",
+        "Osmo Pocket 4P Standard Combo (Pearl White)"
+      ]
+    }
+  ]
+};
+
+var CATALOG = {
+  "MAVIC 4 PRO SERIES": {"u":"Drone","p":["DJI Mavic 4 Pro 512GB Creator Combo","DJI Mavic 4 Pro Fly More Combo","DJI Mavic 4 Pro"]},
+  "MINI 5 PRO SERIES": {"u":"Drone","p":["DJI Mini 5 Pro Fly More Combo Plus (DJI RC2)","DJI Mini 5 Pro Fly More Combo (DJI RC2)","DJI Mini 5 Pro Fly More Combo (DJI RC-N3)","DJI Mini 5 Pro"]},
+  "MINI 4 PRO SERIES": {"u":"Drone","p":["DJI Mini 4 Pro Fly More Combo Plus (DJI RC 2)","DJI Mini 4 Pro Fly More Combo","DJI Mini 4 Pro"]},
+  "NEO SERIES": {"u":"Drone","p":["DJI NEO MOTION FLY MORE COMBO","DJI NEO FLY MORE COMBO","DJI NEO","DJI NEO COMBO (GLOBAL)"]},
+  "LITO X1 SERIES": {"u":"Drone","p":["DJI Lito X1 Fly More Combo Plus (DJI RC 2)","DJI Lito X1 Fly More Combo (DJI RC 2)","DJI Lito X1 Fly More Combo (DJI RC-N3)","DJI Lito X1"]},
+  "OSMO ACTION 6 SERIES": {"u":"Handheld","p":["Osmo Action 6 Adventure Combo","Osmo Action 6 Street Photography Gift Set","Osmo Action 6 Standard Combo"]},
+  "OSMO ACTION 5 PRO SERIES": {"u":"Handheld","p":["Osmo Action 5 PRO Adventure Combo","Osmo Action 5 PRO Standard Combo"]},
+  "OSMO ACTION 4 SERIES": {"u":"Handheld","p":["Osmo Action 4 Adventure Combo","Osmo Action 4 Standard Combo"]},
+  "OSMO POCKET 4 SERIES": {"u":"Handheld","p":["Osmo Pocket 4 Creator Combo","Osmo Pocket 4 Standard Combo"]},
+  "OSMO POCKET 4P SERIES": {"u":"Handheld","p":["Osmo Pocket 4P Vlog Combo","Osmo Pocket 4P Standard Combo","Osmo Pocket 4P Standard Combo (Pearl White)"]},
+  "OSMO POCKET 3 SERIES": {"u":"Handheld","p":["Osmo Pocket 3 Creator Combo","Osmo Pocket 3"]},
+  "DJI MIC 2 SERIES": {"u":"Audio","p":["DJI Mic 2 (2 TX + 1 RX + Charging Case)","DJI Mic 2 (1 TX + 1 RX)","DJI Mic 2 Transmitter"]},
+  "DJI MIC MINI SERIES": {"u":"Audio","p":["DJI Mic Mini (2 TX + 1 RX + Charging Case)","DJI Mic Mini (1 TX + 1 RX)"]}
+};
+
+var PS = {};
+Object.keys(CATALOG).forEach(function(s){
+  CATALOG[s].p.forEach(function(p){ if(!PS[p]) PS[p] = s; });
+});
+
+var staff = SOURCE_DATA.team.slice();
+var N = staff.length;
+var cfg = [];
+
+function esc(x){ return String(x).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+function loadConfigFromSource() {
+  staff = SOURCE_DATA.team.slice();
+  N = staff.length;
+  cfg = SOURCE_DATA.series.map(function(s) {
+    return {
+      u: s.unit,
+      n: s.name,
+      t: s.store_target,
+      m: s.target_mode === 'each' ? 'each' : 'total',
+      div: s.persons || N,
+      s: staff.map(function(name) { return (s.sold_per_person && s.sold_per_person[name]) || 0; }),
+      p: s.products.slice()
+    };
+  });
+}
+loadConfigFromSource();
+
+function calc(d){
+  var T = d.m === 'total' ? d.t : d.t * d.div;
+  var S = d.s.reduce(function(a, b){ return a + b; }, 0);
+  return { T: T, S: S, R: Math.max(0, T - S), pct: T ? Math.min(100, S / T * 100) : 0 };
+}
+
+function shares(d){
+  var dv = Math.max(1, Math.min(N, d.div));
+  var tot = d.m === 'total';
+  var b = tot ? Math.floor(d.t / dv) : d.t;
+  var x = tot ? d.t % dv : 0;
+  return staff.map(function(_, i){ return i < dv ? b + (i < x ? 1 : 0) : 0; });
+}
+
+function eaText(d){
+  return d.m === 'total' 
+    ? '= ' + Math.floor(d.t / d.div) + (d.t % d.div ? '–' + Math.ceil(d.t / d.div) : '') + ' each' 
+    : '= ' + (d.t * d.div) + ' total';
+}
+
+function color(p){ return p >= 80 ? 'var(--green)' : p >= 50 ? 'var(--blue)' : 'var(--amber)'; }
+
+function sum(list){
+  return list.reduce(function(a, d){
+    var c = calc(d);
+    return { T: a.T + c.T, S: a.S + c.S, R: a.R + c.R, hit: a.hit + (c.T > 0 && c.R === 0 ? 1 : 0), n: a.n + 1 };
+  }, { T: 0, S: 0, R: 0, hit: 0, n: 0 });
+}
+
+function gsum(g){ return sum(cfg.filter(function(d){ return d.u === g; })); }
+
+function store(){
+  var all = sum(cfg);
+  var ap = all.T ? Math.min(100, all.S / all.T * 100) : 0;
+  var last = '';
+
+  var top = '<div class="sum"><div class="sg">'
+    + '<div><small>Total target</small><b>' + all.T + '</b></div>'
+    + '<div><small>Sold</small><b>' + all.S + '</b></div>'
+    + '<div><small>Remaining</small><b>' + all.R + '</b></div>'
+    + '<div><small>Series hit</small><b>' + all.hit + '/' + all.n + '</b></div>'
+    + '</div><div class="bar"><div style="width:' + ap + '%;background:' + color(ap) + '"></div></div>'
+    + '<div class="meta"><span>' + all.n + ' series · all models combined</span><span class="r">' + ap.toFixed(0) + '% achieved</span></div></div>';
+
+  var body = cfg.map(function(d){
+    var c = calc(d);
+    var h = '';
+    if(d.u !== last){
+      var gs = gsum(d.u);
+      h = '<div class="unit"><span>' + esc(d.u) + '</span><span>' + gs.S + ' / ' + gs.T + ' units</span></div>';
+    }
+    last = d.u;
+
+    return h + '<div class="row">'
+      + '<div class="top"><span class="name">' + esc(d.n) + '</span><span class="nums">' + c.S + '<i> / ' + c.T + '</i><b>' + c.pct.toFixed(0) + '%</b></span></div>'
+      + '<div class="bar"><div style="width:' + c.pct + '%;background:' + color(c.pct) + '"></div></div>'
+      + '<div class="meta"><span>' + d.p.length + ' active SKUs · ' + (d.m === 'total' ? d.t + ' total ÷ ' : d.t + ' each × ') + d.div + ' persons</span>'
+      + (c.R === 0 ? '<span class="ok">✓ Target hit</span>' : '<span class="r">' + c.R + ' to go</span>')
+      + '</div></div>';
+  }).join('');
+
+  return top + '<div>' + body + '</div>';
+}
+
+function pp(d){
+  var dv = Math.max(1, Math.min(N, d.div));
+  var T = calc(d).T;
+  return Math.floor(T / dv) + (T % dv ? '–' + Math.ceil(T / dv) : '');
+}
+
+function promoters(){
+  var all = sum(cfg);
+  var ap = all.T ? Math.round(all.S / all.T * 100) : 0;
+  var tpp = 0;
+  var tot = staff.map(function(_, i){
+    return cfg.reduce(function(a, d){ return a + (d.s[i] || 0); }, 0);
+  });
+  cfg.forEach(function(d){ tpp += Math.ceil(calc(d).T / Math.max(1, Math.min(N, d.div))); });
+
+  return '<p class="legend">Units sold per promoter. Green values indicate individual quota share achieved.</p>'
+    + '<div class="wrap"><table><thead><tr>'
+    + '<th>Series</th><th>Target</th><th>Per person</th>'
+    + staff.map(function(s){ return '<th>' + esc(s) + '</th>'; }).join('')
+    + '<th>Total sold</th><th>Remaining</th><th>% Achieved</th><th>Status</th>'
+    + '</tr></thead><tbody>'
+    + cfg.map(function(d){
+        var c = calc(d);
+        var sh = shares(d);
+        return '<tr><td>' + esc(d.n) + '</td><td class="s">' + c.T + '</td><td>' + pp(d) + '</td>'
+          + staff.map(function(_, i){
+              var s = d.s[i] || 0;
+              return '<td class="' + (sh[i] > 0 && s >= sh[i] ? 'done' : '') + '">' + s + '</td>';
+            }).join('')
+          + '<td class="s">' + c.S + '</td>'
+          + '<td>' + c.R + '</td>'
+          + '<td>' + Math.round(c.T ? c.S / c.T * 100 : 0) + '%</td>'
+          + '<td>' + (c.R === 0 ? '<span class="done">Achieved</span>' : '<span class="rem">Pending</span>') + '</td></tr>';
+      }).join('')
+    + '</tbody><tfoot><tr>'
+    + '<td>Total</td><td>' + all.T + '</td><td>' + tpp + '</td>'
+    + tot.map(function(x){ return '<td>' + x + '</td>'; }).join('')
+    + '<td>' + all.S + '</td><td>' + all.R + '</td><td>' + ap + '%</td>'
+    + '<td>' + (all.R === 0 ? '<span class="done">Achieved</span>' : '<span class="rem">Pending</span>') + '</td>'
+    + '</tr></tfoot></table></div>';
+}
+
+var mode = 'store';
+function render(){
+  document.getElementById('view').innerHTML = mode === 'store' ? store() : promoters();
+  document.querySelectorAll('#seg button').forEach(function(b){
+    b.classList.toggle('on', b.dataset.m === mode);
+  });
+  document.getElementById('active-staff-label').textContent = N + ' Promoters on floor';
+}
+
+document.getElementById('seg').addEventListener('click', function(e){
+  var m = e.target.dataset && e.target.dataset.m;
+  if(m){ mode = m; render(); }
+});
+document.getElementById('more').addEventListener('click', function(){ mode = 'promoters'; render(); });
+
+// Theme toggle
+document.getElementById('btn-theme').addEventListener('click', function(){
+  var cur = document.documentElement.getAttribute('data-theme');
+  var nxt = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', nxt);
+});
+
+// Quick Log Sale
+var ovLog = document.getElementById('ov-log');
+document.getElementById('btn-log').addEventListener('click', function(){
+  var sSel = document.getElementById('log-staff');
+  var pSel = document.getElementById('log-series');
+  sSel.innerHTML = staff.map(function(s, i){ return '<option value="' + i + '">' + esc(s) + '</option>'; }).join('');
+  pSel.innerHTML = cfg.map(function(c, i){ return '<option value="' + i + '">' + esc(c.n) + '</option>'; }).join('');
+  document.getElementById('log-units').value = '1';
+  ovLog.hidden = false;
+});
+function closeLog(){ ovLog.hidden = true; }
+document.getElementById('cancel-log').addEventListener('click', closeLog);
+document.getElementById('x-log-cancel').addEventListener('click', closeLog);
+document.getElementById('submit-log').addEventListener('click', function(){
+  var sIdx = +document.getElementById('log-staff').value;
+  var pIdx = +document.getElementById('log-series').value;
+  var qty = Math.max(1, parseInt(document.getElementById('log-units').value, 10) || 1);
+  cfg[pIdx].s[sIdx] = (cfg[pIdx].s[sIdx] || 0) + qty;
+  closeLog();
+  render();
+});
+
+// Editor overlay & SKU selector
+var ov = document.getElementById('ov');
+var eb = document.getElementById('edb');
+var draft, open = {}, q = {}, draftN = 3;
+
+function listHTML(i){
+  var d = draft[i], term = (q[i] || '').toLowerCase(), items = [], seen = {};
+  function add(p){ if(!seen[p]){ seen[p] = 1; items.push(p); } }
+  if(term){
+    Object.keys(PS).forEach(function(p){
+      if(items.length < 50 && (p.toLowerCase().indexOf(term) > -1 || PS[p].toLowerCase().indexOf(term) > -1)) add(p);
+    });
+  } else {
+    (CATALOG[d.n] ? CATALOG[d.n].p : []).forEach(add);
+    d.p.forEach(add);
+  }
+  if(!items.length) return '<p class="legend">' + (term ? 'No products matching search.' : 'No SKUs mapped yet.') + '</p>';
+  return items.map(function(p){
+    var o = -1;
+    draft.forEach(function(x, j){ if(j !== i && x.p.indexOf(p) > -1) o = j; });
+    return '<label class="pi"><input type="checkbox" data-i="' + i + '" data-nm="' + esc(p) + '"' + (d.p.indexOf(p) > -1 ? ' checked' : '') + '>'
+      + '<span>' + esc(p) + '<small>' + esc(PS[p] || 'Standard') + (o > -1 ? ' · currently in ' + esc(draft[o].n) : '') + '</small></span></label>';
+  }).join('');
+}
+
+function edHTML(){
+  var h = '<div class="er"><div class="erh"><b>Active Promoters</b>'
+    + '<label class="tg"><input type="number" min="1" max="10" value="' + draftN + '" data-n="1"></label>'
+    + '<span class="ea">Quotas are split across these promoters</span></div></div>'
+    + draft.map(function(d, i){
+        return '<div class="er"><div class="erh">'
+          + (d.c ? '<input class="nm" value="' + esc(d.n) + '" data-name="' + i + '" maxlength="40">' : '<b>' + esc(d.n) + '</b>')
+          + '<span class="u">' + esc(d.u) + '</span>'
+          + '<select class="ms" data-mode="' + i + '"><option value="each"' + (d.m==='total'?'':' selected') + '>Target each</option><option value="total"' + (d.m==='total'?' selected':'') + '>Total split equally</option></select>'
+          + '<label class="tg"><input type="number" min="0" max="999" value="' + d.t + '" data-t="' + i + '"></label>'
+          + '<label class="tg">' + (d.m === 'total' ? '÷' : '×') + ' persons <input type="number" min="1" max="' + draftN + '" value="' + d.div + '" data-d="' + i + '"></label>'
+          + '<span class="ea" id="ea' + i + '">' + eaText(d) + '</span>'
+          + '<button class="chip" data-act="tog" data-i="' + i + '">' + d.p.length + ' products ' + (open[i] ? '▴' : '▾') + '</button>'
+          + '<button class="ib" data-act="del" data-i="' + i + '" title="Remove">✕</button></div>'
+          + (open[i] ? '<div class="pk"><input type="search" placeholder="Search catalog SKUs…" data-q="' + i + '" value="' + esc(q[i] || '') + '"><div class="pl" id="pl' + i + '">' + listHTML(i) + '</div></div>' : '')
+          + '</div>';
+      }).join('');
+
+  var avail = Object.keys(CATALOG).filter(function(s){
+    return !draft.some(function(d){ return d.n === s; });
+  });
+
+  return h + '<div class="add"><select id="addsel">' + avail.map(function(s){ return '<option>' + esc(s) + '</option>'; }).join('') + '</select><button class="chip" data-act="add">Add series</button></div>'
+    + '<div class="add"><input id="cname" class="nm" placeholder="Custom series name…" maxlength="40"><button class="chip" data-act="addc">Add custom</button></div>';
+}
+
+function drawEd(){
+  var y = eb.scrollTop;
+  eb.innerHTML = edHTML();
+  eb.scrollTop = y;
+}
+
+function openEd(){
+  draftN = N;
+  draft = JSON.parse(JSON.stringify(cfg));
+  open = {}; q = {};
+  drawEd();
+  ov.hidden = false;
+}
+
+function closeEd(){ ov.hidden = true; }
+
+document.getElementById('edit').addEventListener('click', openEd);
+document.getElementById('cancel').addEventListener('click', closeEd);
+document.getElementById('x-cancel').addEventListener('click', closeEd);
+document.getElementById('reset').addEventListener('click', function(){
+  loadConfigFromSource();
+  openEd();
+});
+document.getElementById('save').addEventListener('click', function(){
+  N = draftN;
+  while(staff.length < N) staff.push('Promoter ' + (staff.length + 1));
+  staff = staff.slice(0, N);
+  cfg = draft;
+  cfg.forEach(function(x){
+    x.div = Math.min(x.div, N);
+    var oldS = x.s || [];
+    x.s = staff.map(function(_, i){ return oldS[i] || 0; });
+  });
+  closeEd();
+  render();
+});
+
+eb.addEventListener('click', function(e){
+  var b = e.target.closest('[data-act]');
+  if(!b) return;
+  var i = +b.dataset.i, act = b.dataset.act;
+  if(act === 'tog') open[i] = !open[i];
+  else if(act === 'del'){ draft.splice(i, 1); open = {}; }
+  else if(act === 'addc'){
+    var nm = document.getElementById('cname').value.trim();
+    if(!nm) return;
+    draft.push({ u: 'Handheld', c: 1, n: nm, t: 6, m: 'total', div: draftN, s: staff.map(function(){ return 0; }), p: [] });
+    open = {}; open[draft.length - 1] = true;
+  } else if(act === 'add'){
+    var s = document.getElementById('addsel').value;
+    if(!s) return;
+    draft.push({ u: CATALOG[s].u, n: s, t: 6, m: 'total', div: draftN, s: staff.map(function(){ return 0; }), p: CATALOG[s].p.slice() });
+    open = {}; open[draft.length - 1] = true;
+  }
+  drawEd();
+});
+
+eb.addEventListener('change', function(e){
+  var t = e.target;
+  if(t.dataset.n !== undefined){
+    draftN = Math.max(1, Math.min(10, parseInt(t.value, 10) || 1));
+    draft.forEach(function(x){ x.div = Math.min(x.div, draftN); });
+    drawEd();
+    return;
+  }
+  if(t.dataset.mode !== undefined){
+    draft[+t.dataset.mode].m = t.value;
+    drawEd();
+    return;
+  }
+  if(t.dataset.t !== undefined){
+    var idx = +t.dataset.t;
+    draft[idx].t = Math.max(0, parseInt(t.value, 10) || 0);
+    document.getElementById('ea' + idx).textContent = eaText(draft[idx]);
+    return;
+  }
+  if(t.dataset.d !== undefined){
+    var idx2 = +t.dataset.d;
+    draft[idx2].div = Math.max(1, Math.min(draftN, parseInt(t.value, 10) || 1));
+    document.getElementById('ea' + idx2).textContent = eaText(draft[idx2]);
+    return;
+  }
+  if(t.dataset.nm !== undefined){
+    var pIdx = +t.dataset.i, prod = t.dataset.nm;
+    if(t.checked){
+      draft.forEach(function(x, j){
+        if(j !== pIdx){
+          var rem = x.p.indexOf(prod);
+          if(rem > -1) x.p.splice(rem, 1);
+        }
+      });
+      if(draft[pIdx].p.indexOf(prod) < 0) draft[pIdx].p.push(prod);
+    } else {
+      var rem2 = draft[pIdx].p.indexOf(prod);
+      if(rem2 > -1) draft[pIdx].p.splice(rem2, 1);
+    }
+    drawEd();
+  }
+});
+
+eb.addEventListener('input', function(e){
+  var t = e.target;
+  if(t.dataset.q !== undefined){
+    var idx = +t.dataset.q;
+    q[idx] = t.value;
+    document.getElementById('pl' + idx).innerHTML = listHTML(idx);
+  }
+});
+
+// Initial Render
+render();
+</script>
+</body>
+</html>
