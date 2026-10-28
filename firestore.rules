@@ -20,11 +20,13 @@ service cloud.firestore {
         data.keys().hasOnly([
           'sales', 'tasks', 'leads', 'final', 'goal', 'pm',
           'mainPushTargets', 'mainPushVariants', 'mainPushDividers',
+          'mainPushSeries',
           'inventoryUnits', 'hasCustomInventory', 'updatedAt',
           'staff'
         ]) &&
         (!('goal' in data) || data.goal is number) &&
         (!('sales' in data) || (data.sales is list && data.sales.size() <= 20000)) &&
+        (!('mainPushSeries' in data) || (data.mainPushSeries is list && data.mainPushSeries.size() <= 50)) &&
         (!('inventoryUnits' in data) || (data.inventoryUnits is list && data.inventoryUnits.size() <= 20000)) &&
         (!('hasCustomInventory' in data) || data.hasCustomInventory is bool) &&
         (!('staff' in data) || (data.staff is list && data.staff.size() <= 50));

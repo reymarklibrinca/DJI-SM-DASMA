@@ -123,24 +123,23 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
   const handleDownloadTemplate = () => {
     try {
       const templateRows = [
-        ['EAN / Barcode', 'Serial Number (SN)', 'Product Name', 'Price / SRP', 'Category / Series', 'Status'],
-        ['6941565983712', '1581F895C262401709R5', 'DJI Air 3S Fly More Combo (DJI RC-N3)', 69990, 'AIR 3S SERIES', 'IN STOCK'],
-        ['6941565988113', '9KRXP3P00BV881', 'Osmo Action 6 Adventure Combo', 28990, 'OSMO ACTION 6 SERIES', 'IN STOCK'],
-        ['6941565984429', 'ANGVP1J0020KTA', 'Osmo Pocket 4 Standard Combo', 28990, 'OSMO POCKET 4 SERIES', 'IN STOCK'],
-        ['6941565982104', '1581F9DEC25AL029CX61', 'DJI Mini 5 Pro', 38990, 'MINI 5 PRO SERIES', 'IN STOCK'],
-        ['6941565981152', '1581FA6QC25B700CZ2QJ', 'DJI NEO 2', 11990, 'NEO 2 SERIES', 'IN STOCK'],
-        ['6941565980025', 'B3QTP4M0014J87', 'DJI Mic Mini 2 (1 TX + 1 Mobile RX + Charging Case)', 8490, 'DJI MIC MINI 2 SERIES', 'IN STOCK'],
-        ['6941565979814', '1581FB34C261T00396Z8', 'DJI Lito X1', 19990, 'LITO X1 SERIES', 'IN STOCK'],
+        ['EAN / Barcode', 'Serial Number (SN)', 'Product Name', 'Category / Series', 'Status'],
+        ['6941565983712', '1581F895C262401709R5', 'DJI Air 3S Fly More Combo (DJI RC-N3)', 'AIR 3S SERIES', 'IN STOCK'],
+        ['6941565988113', '9KRXP3P00BV881', 'Osmo Action 6 Adventure Combo', 'OSMO ACTION 6 SERIES', 'IN STOCK'],
+        ['6941565984429', 'ANGVP1J0020KTA', 'Osmo Pocket 4 Standard Combo', 'OSMO POCKET 4 SERIES', 'IN STOCK'],
+        ['6941565982104', '1581F9DEC25AL029CX61', 'DJI Mini 5 Pro', 'MINI 5 PRO SERIES', 'IN STOCK'],
+        ['6941565981152', '1581FA6QC25B700CZ2QJ', 'DJI NEO 2', 'NEO 2 SERIES', 'IN STOCK'],
+        ['6941565980025', 'B3QTP4M0014J87', 'DJI Mic Mini 2 (1 TX + 1 Mobile RX + Charging Case)', 'DJI MIC MINI 2 SERIES', 'IN STOCK'],
+        ['6941565979814', '1581FB34C261T00396Z8', 'DJI Lito X1', 'LITO X1 SERIES', 'IN STOCK'],
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(templateRows);
       ws['!cols'] = [
         { wch: 18 }, // EAN
         { wch: 24 }, // SN
-        { wch: 42 }, // Product Name
-        { wch: 14 }, // Price
+        { wch: 44 }, // Product Name
         { wch: 22 }, // Series
-        { wch: 12 }, // Status
+        { wch: 14 }, // Status
       ];
 
       const wb = XLSX.utils.book_new();
@@ -156,7 +155,7 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
   const handleExportActiveInventory = () => {
     try {
       const rows = [
-        ['EAN / Barcode', 'Serial Number (SN)', 'Product Name', 'Category / Series', 'Price / SRP', 'Status'],
+        ['EAN / Barcode', 'Serial Number (SN)', 'Product Name', 'Category / Series', 'Status'],
       ];
 
       units.forEach((u) => {
@@ -165,7 +164,6 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
           u[0],
           u[1],
           u[3],
-          String(u[2] || 0),
           u[4] || 'IN STOCK',
         ]);
       });
@@ -174,10 +172,9 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
       ws['!cols'] = [
         { wch: 18 },
         { wch: 24 },
-        { wch: 42 },
+        { wch: 44 },
         { wch: 22 },
         { wch: 14 },
-        { wch: 12 },
       ];
 
       const wb = XLSX.utils.book_new();
@@ -797,9 +794,8 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
 
                     <div className="flex items-center gap-3 text-right shrink-0">
                       <div className="text-right">
-                        <div className="font-black text-slate-900">{formatCurrency(r.price)}</div>
                         <span
-                          className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                             r.status === 'IN STOCK' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
                           }`}
                         >
@@ -909,7 +905,7 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
             >
               {productCatalog.map((prod, idx) => (
                 <option key={idx} value={idx}>
-                  {prod[1]} ({formatCurrency(prod[2])})
+                  {prod[1]}
                 </option>
               ))}
             </select>

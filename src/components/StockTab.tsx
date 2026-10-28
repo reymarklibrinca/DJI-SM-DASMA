@@ -10,6 +10,10 @@ import {
   ChevronRight,
   Info,
   Trash2,
+  Plus,
+  Barcode,
+  Check,
+  X,
 } from 'lucide-react';
 import { DJI_DATA } from '../data/initialData';
 import { StockSeriesCover, UnitTuple } from '../types';
@@ -24,9 +28,10 @@ interface StockTabProps {
   units?: UnitTuple[];
   onWipeStock?: () => void;
   onDeleteUnits?: (serials: string[]) => void;
+  onAddUnit?: (unit: UnitTuple) => void;
 }
 
-export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units, onWipeStock, onDeleteUnits }) => {
+export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units, onWipeStock, onDeleteUnits, onAddUnit }) => {
   // Sort series rows by days of cover (lowest cover first)
   const sortedSeriesRows = useMemo(() => {
     return [...stockMetrics.rows].sort((a, b) => {
@@ -47,6 +52,45 @@ export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units, onWipeS
   const [wipeOpen, setWipeOpen] = useState(false);
   const [wipeScope, setWipeScope] = useState<'all' | 'filtered'>('all');
   const [wipeText, setWipeText] = useState('');
+
+  // Quick Add Stock (without price)
+  const [addStockOpen, setAddStockOpen] = useState(false);
+  const [addSn, setAddSn] = useState('');
+  const [addEan, setAddEan] = useState('');
+  const [selectedProductIdx, setSelectedProductIdx] = useState(0);
+  const [addStatus, setAddStatus] = useState<'IN STOCK' | 'SOLD'>('IN STOCK');
+  const [addSuccessMsg, setAddSuccessMsg] = useState<string | null>(null);
+
+  const productCatalog = useMemo(() => {
+    return [...DJI_DATA.stock].sort((a, b) => a[1].localeCompare(b[1]));
+  }, []);
+
+  const handleAddStock = (e: React.FormEvent) => {
+    e.preventDefault();
+    const sn = addSn.trim().toUpperCase();
+    if (!sn) return;
+
+    const prod = productCatalog[selectedProductIdx];
+    const productName = prod ? prod[1] : 'DJI Unit';
+    const series = prod ? prod[0] : 'GENERAL';
+    const price = prod ? prod[2] : 0; // Catalog price assigned silently in background
+
+    const newUnit: UnitTuple = [
+      sn,
+      productName,
+      price,
+      series,
+      addStatus,
+      addEan.trim(),
+    ];
+
+    onAddUnit?.(newUnit);
+    setAddSuccessMsg(`Added ${sn} (${productName}) to stock!`);
+    setTimeout(() => setAddSuccessMsg(null), 3500);
+
+    setAddSn('');
+    setAddEan('');
+  };
 
   const currentUnitsList = units || DJI_DATA.units;
 
@@ -274,6 +318,21 @@ export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units, onWipeS
               <option value="SOLD">Sold Only</option>
             </select>
 
+            {onAddUnit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAddStockOpen((o) => !o);
+                  setWipeOpen(false);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-lg transition-all cursor-pointer shadow-2xs"
+                title="Add incoming unit to stock"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Stock</span>
+              </button>
+            )}
+
             {(onWipeStock || onDeleteUnits) && (
               <button
                 type="button"
@@ -281,6 +340,7 @@ export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units, onWipeS
                   setWipeOpen((o) => !o);
                   setWipeText('');
                   setWipeScope('all');
+                  setAddStockOpen(false);
                 }}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg transition-all cursor-pointer"
                 title="Wipe stock records"
@@ -291,6 +351,110 @@ export const StockTab: React.FC<StockTabProps> = ({ stockMetrics, units, onWipeS
             )}
           </div>
         </div>
+
+        {addSuccessMsg && (
+          <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-600" />
+              <span>{addSuccessMsg}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAddSuccessMsg(null)}
+              className="p-1 text-emerald-600 hover:text-emerald-800 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {addStockOpen && (
+          <form
+            onSubmit={handleAddStock}
+            className="mb-4 p-4 rounded-xl border border-blue-200 bg-blue-50/50 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  Add Unit to Stock
+                </p>
+                <p className="text-xs text-slate-500">
+                  Quickly receive an incoming unit by serial number.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddStockOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Serial Number (SN) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 1581F895C262401709R5"
+                  value={addSn}
+                  onChange={(e) => setAddSn(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900 uppercase focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Product Model
+                </label>
+                <select
+                  value={selectedProductIdx}
+                  onChange={(e) => setSelectedProductIdx(Number(e.target.value))}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold"
+                >
+                  {productCatalog.map((prod, idx) => (
+                    <option key={idx} value={idx}>
+                      {prod[1]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  EAN / Barcode (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 6941565983712"
+                  value={addEan}
+                  onChange={(e) => setAddEan(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-900"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="submit"
+                className="px-4 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all cursor-pointer shadow-2xs"
+              >
+                Add Unit to Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddStockOpen(false)}
+                className="px-3 py-1.5 text-xs rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
 
         {wipeOpen && (() => {
           const isFiltered = filteredUnits.length < currentUnitsList.length;

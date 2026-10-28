@@ -197,6 +197,7 @@ export default function App() {
             units={store.activeUnits}
             onWipeStock={store.deleteAllInventory}
             onDeleteUnits={store.deleteInventoryUnits}
+            onAddUnit={store.addInventoryUnit}
           />
         )}
 
