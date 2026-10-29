@@ -2,6 +2,7 @@ import { fetchCloudData, saveCloudData, subscribeToCloudData } from '../cloudSto
 import { reconcileStoreState } from '../utils/syncReconciliation';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { DJI_DATA, ROUTINE_TASKS, DEFAULT_STAFF } from '../data/initialData';
+import { toggleTaskForDay } from '../utils/tasks';
 import {
   LocalStorageState,
   SaleTuple,
@@ -15,8 +16,7 @@ import {
   aggregateSales,
   calculateStockMetrics,
   calculatePercentChange,
-  DEFAULT_MAIN_PUSH_VARIANTS,
-} from '../utils/calculations';
+  DEFAULT_MAIN_PUSH_VARIANTS, setActiveStaff } from '../utils/calculations';
 
 const STORAGE_KEY = 'oh2';
 
@@ -110,6 +110,7 @@ export function useDjiStore() {
       ? localData.staff
       : DEFAULT_STAFF;
   }, [localData.staff]);
+  setActiveStaff(activeStaff);
 
   // 1. Firebase Initial Load + Non-Destructive Bidirectional Reconciliation
   useEffect(() => {
@@ -314,8 +315,22 @@ export function useDjiStore() {
   }, [localData.sales]);
 
   // Today's day offset based on local clock
-  const todayDayOffset = useMemo(() => {
-    return dateToDayOffset(new Date());
+  // Kept live so a tablet left open overnight rolls over to the new day
+  // (it used to stay on the day the page was opened).
+  const [todayDayOffset, setTodayDayOffset] = useState<number>(() => dateToDayOffset(new Date()));
+  useEffect(() => {
+    const check = () => setTodayDayOffset((prev) => {
+      const now = dateToDayOffset(new Date());
+      return now === prev ? prev : now;
+    });
+    const timer = setInterval(check, 60000);
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
   }, []);
 
   // End day offset for calculations
@@ -829,6 +844,39 @@ export function useDjiStore() {
     [saveToStorage, recordMutation]
   );
 
+  // Archive a promoter: hidden from new sale entry, but every sale, lead and report keeps their name.
+  // (Removing from the list would shift the position numbers that stored sales are tied to.)
+  const archivePromoter = useCallback(
+    (index: number) => {
+      recordMutation();
+      setLocalData((prev) => {
+        const staffLen = prev.staff && prev.staff.length > 0 ? prev.staff.length : DEFAULT_STAFF.length;
+        const archived = new Set(prev.archivedStaff || []);
+        if (index < 0 || index >= staffLen || archived.has(index)) return prev;
+        if (staffLen - archived.size <= 1) return prev; // keep at least one active promoter
+        archived.add(index);
+        const updated: LocalStorageState = { ...prev, archivedStaff: Array.from(archived).sort((a, b) => a - b) };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage, recordMutation]
+  );
+
+  const restorePromoter = useCallback(
+    (index: number) => {
+      recordMutation();
+      setLocalData((prev) => {
+        const archived = prev.archivedStaff || [];
+        if (!archived.includes(index)) return prev;
+        const updated: LocalStorageState = { ...prev, archivedStaff: archived.filter((i) => i !== index) };
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [saveToStorage, recordMutation]
+  );
+
   // Update a single promoter's name by index
   const updatePromoterName = useCallback(
     (index: number, newName: string) => {
@@ -1032,13 +1080,9 @@ export function useDjiStore() {
     (taskIndex: number, dateKey: string = new Date().toDateString()) => {
       recordMutation();
       setLocalData((prev) => {
-        const dayTasks = [...(prev.tasks[dateKey] || Array(ROUTINE_TASKS.length).fill(false))];
-        dayTasks[taskIndex] = !dayTasks[taskIndex];
         const updated = {
           ...prev,
-          tasks: {
-            [dateKey]: dayTasks,
-          },
+          tasks: toggleTaskForDay(prev.tasks, dateKey, taskIndex, ROUTINE_TASKS.length),
         };
         saveToStorage(updated);
         return updated;
@@ -1372,6 +1416,9 @@ export function useDjiStore() {
     updatePromoterName,
     addPromoter,
     removePromoter,
+    archivedStaff: (localData.archivedStaff || []) as number[],
+    archivePromoter,
+    restorePromoter,
     resetStaffToDefault,
     series: DJI_DATA.ser,
     allSales,

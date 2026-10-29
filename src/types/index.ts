@@ -62,6 +62,7 @@ export interface LocalStorageState {
   inventoryUnits?: UnitTuple[]; // Custom imported or edited serialized inventory
   hasCustomInventory?: boolean; // When true, inventoryUnits (even if empty []) is authoritative and will not revert to initial seed
   staff?: string[]; // Customizable list of store promoter names
+  archivedStaff?: number[]; // Indexes of promoters archived (hidden from new entries, kept in history)
 }
 
 export interface VariantBreakdown {

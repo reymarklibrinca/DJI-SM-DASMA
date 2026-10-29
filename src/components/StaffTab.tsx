@@ -13,6 +13,8 @@ import {
   RotateCcw,
   UserPlus,
   Sparkles,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 import { PeriodRange, SaleTuple } from '../types';
 import { DEFAULT_STAFF } from '../data/initialData';
@@ -37,6 +39,9 @@ interface StaffTabProps {
   onUpdatePromoterName?: (index: number, newName: string) => void;
   onAddPromoter?: (name: string) => void;
   onRemovePromoter?: (index: number) => void;
+  archivedStaff?: number[];
+  onArchivePromoter?: (index: number) => void;
+  onRestorePromoter?: (index: number) => void;
   onResetStaffToDefault?: () => void;
 }
 
@@ -51,6 +56,9 @@ export const StaffTab: React.FC<StaffTabProps> = ({
   onUpdatePromoterName,
   onAddPromoter,
   onRemovePromoter,
+  archivedStaff = [],
+  onArchivePromoter,
+  onRestorePromoter,
   onResetStaffToDefault,
 }) => {
   // Modal & inline edit states
@@ -128,15 +136,21 @@ export const StaffTab: React.FC<StaffTabProps> = ({
     }
   };
 
-  // Remove a promoter
-  const handleRemovePromoter = (idx: number) => {
-    if (staffList.length <= 1) return;
+  // Archive a promoter (keeps all history; hides them from new sale entry)
+  const activeCount = staffList.length - archivedStaff.length;
+  const handleArchivePromoter = (idx: number) => {
+    if (activeCount <= 1) return;
     const pName = staffList[idx];
-    if (window.confirm(`Remove promoter "${pName}" from the roster? All previous sales logged under this index remain in history.`)) {
-      onRemovePromoter?.(idx);
-      setFeedbackToast(`Removed promoter "${pName}".`);
+    if (window.confirm(`Archive "${pName}"? Their past sales, leads and reports stay exactly as they are. They just won't appear when logging new sales. You can restore them any time.`)) {
+      onArchivePromoter?.(idx);
+      setFeedbackToast(`Archived "${pName}".`);
       setTimeout(() => setFeedbackToast(null), 3500);
     }
+  };
+  const handleRestorePromoter = (idx: number) => {
+    onRestorePromoter?.(idx);
+    setFeedbackToast(`Restored "${staffList[idx]}".`);
+    setTimeout(() => setFeedbackToast(null), 3500);
   };
 
   // Reset to default
@@ -623,11 +637,12 @@ export const StaffTab: React.FC<StaffTabProps> = ({
                   {staffList.map((name, idx) => {
                     const short = getPromoterShortName(name);
                     const quota = promoterMonthlyTargets[idx] ?? 2400000;
+                    const isArchived = archivedStaff.includes(idx);
 
                     return (
                       <div
                         key={idx}
-                        className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-blue-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        className={`p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-blue-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isArchived ? 'opacity-60' : ''}`}
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
@@ -639,6 +654,11 @@ export const StaffTab: React.FC<StaffTabProps> = ({
                               <span className="text-[10px] font-bold uppercase text-slate-400">
                                 Promoter #{idx + 1}
                               </span>
+                              {isArchived && (
+                                <span className="text-[10px] font-bold text-slate-600 bg-slate-200 px-1.5 py-0.5 rounded">
+                                  Archived
+                                </span>
+                              )}
                               <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
                                 Short: {short}
                               </span>
@@ -669,15 +689,26 @@ export const StaffTab: React.FC<StaffTabProps> = ({
                             />
                           </div>
 
-                          {staffList.length > 1 && (
+                          {isArchived ? (
                             <button
                               type="button"
-                              onClick={() => handleRemovePromoter(idx)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer mt-3"
-                              title="Remove promoter"
+                              onClick={() => handleRestorePromoter(idx)}
+                              className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer mt-3"
+                              title="Restore promoter"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <ArchiveRestore className="w-4 h-4" />
                             </button>
+                          ) : (
+                            activeCount > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleArchivePromoter(idx)}
+                                className="p-1.5 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer mt-3"
+                                title="Archive promoter (keeps all history)"
+                              >
+                                <Archive className="w-4 h-4" />
+                              </button>
+                            )
                           )}
                         </div>
                       </div>

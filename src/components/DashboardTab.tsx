@@ -445,7 +445,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   return (
     <div className="space-y-6">
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 [&>div:last-child]:col-span-2 lg:[&>div:last-child]:col-span-1">
         {/* Total Sales */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">

@@ -53,11 +53,30 @@ export const ACCESSORIES_INDEX = DJI_DATA.ser.findIndex(
   (s) => s === 'ACCESSORIES' || s.includes('ACCESSORIES')
 );
 
+// The live promoter roster. The store keeps this in sync so every report indexes
+// promoters the same way (reports used to assume the 3 default names and
+// crashed or dropped sales once the roster was customised).
+let ACTIVE_STAFF: string[] = DJI_DATA.staff;
+export function setActiveStaff(list: string[]) {
+  if (Array.isArray(list) && list.length > 0) ACTIVE_STAFF = list;
+}
+export function getActiveStaff(): string[] {
+  return ACTIVE_STAFF;
+}
+
+// One definition of "hardware sale" shared by sales totals and lead-conversion maths
+export function isHardwareSale(s: SaleTuple): boolean {
+  const serName = DJI_DATA.ser[s[2]] || '';
+  const isCare = s[2] === CARE_INDEX || serName.includes('CARE REFRESH') || serName.includes('SERVICES');
+  const isAccessories = serName.includes('ACCESSOR') || s[2] === ACCESSORIES_INDEX;
+  return !isCare && !isAccessories;
+}
+
 export function aggregateSales(
   sales: SaleTuple[],
   a: number,
   b: number,
-  staffList: string[] = DJI_DATA.staff
+  staffList: string[] = getActiveStaff()
 ): AggregatedData {
   const o: AggregatedData = {
     sa: 0,
@@ -80,7 +99,7 @@ export function aggregateSales(
   for (const s of sales) {
     const day = s[0];
     if (day < a || day > b) continue;
-    if (s[5] && a === b) continue; // Skip hold/hidden on single-day view if flag is set
+    if (s[5]) continue; // Held items are not sales yet: excluded from every total, bar and breakdown alike
 
     const price = s[3];
     const units = s[4] ?? 1;
@@ -255,7 +274,7 @@ export function aggregateLeadsOverRange(
 
       // Add device sales on days with leads
       sales.forEach((s) => {
-        if (s[0] === i && s[2] !== CARE_INDEX && s[2] !== ACCESSORIES_INDEX) {
+        if (s[0] === i && !s[5] && isHardwareSale(s)) {
           hwUnits += s[4] ?? 1;
         }
       });
@@ -362,14 +381,19 @@ export function generateDailyReportText(
   dayOffset: number,
   sales: SaleTuple[],
   goal: number = 232258,
-  staffList: string[] = DJI_DATA.staff
+  staffList: string[] = getActiveStaff(),
+  extras: {
+    localLeads?: Record<number, Record<string, [number, number, number]>>;
+    tasks?: Record<string, boolean[]>;
+    routineTotal?: number;
+  } = {}
 ): string {
-  const dayAgg = aggregateSales(sales, dayOffset, dayOffset);
+  const dayAgg = aggregateSales(sales, dayOffset, dayOffset, staffList);
   let monthStart = dayOffset;
   while (monthStart > 0 && getMonthKey(monthStart - 1) === getMonthKey(dayOffset)) {
     monthStart--;
   }
-  const mtdAgg = aggregateSales(sales, monthStart, dayOffset);
+  const mtdAgg = aggregateSales(sales, monthStart, dayOffset, staffList);
   const achievement = goal > 0 ? (dayAgg.sa / goal) * 100 : 0;
   const dateStr = formatDate(dayOffset).toUpperCase();
 
@@ -386,17 +410,34 @@ export function generateDailyReportText(
 
   staffList.forEach((staffName, i) => {
     lines.push(staffName.toUpperCase());
-    lines.push(`STD: ${formatNumber(dayAgg.st[i][0])}`);
-    lines.push(`MTD: ${formatNumber(mtdAgg.st[i][0])}`);
+    lines.push(`STD: ${formatNumber(dayAgg.st[i]?.[0] ?? 0)}`);
+    lines.push(`MTD: ${formatNumber(mtdAgg.st[i]?.[0] ?? 0)}`);
     lines.push('');
   });
 
   const monthPush = calculateMainPushBreakdown(sales, staffList, dayOffsetToDate(dayOffset).getMonth());
   if (monthPush.categories.length > 0) {
-    lines.push('Main Push Targets (October)');
+    lines.push(`Main Push Targets (${dayOffsetToDate(dayOffset).toLocaleString('en-US', { month: 'long' })})`);
     monthPush.categories.forEach((cat) => {
       lines.push(`${cat.name}: ${cat.storeSold}/${cat.storeTarget}`);
     });
+    lines.push('');
+  }
+
+  // Leads and routines for the same day, so the report matches what the sales tabs show
+  if (extras.localLeads) {
+    const [w, r, o] = getDailyTotalLeads(dayOffset, extras.localLeads);
+    const total = w + r + o;
+    if (total > 0) {
+      lines.push('② Leads & Conversion');
+      lines.push(`Walk-in: ${w} | Revisit: ${r} | Online: ${o}`);
+      lines.push(`Hardware units per lead: ${(dayAgg.hw / total).toFixed(2)}`);
+      lines.push('');
+    }
+  }
+  if (extras.tasks && extras.routineTotal) {
+    const done = (extras.tasks[dayOffsetToDate(dayOffset).toDateString()] || []).filter(Boolean).length;
+    lines.push(`③ Store Routines: ${done}/${extras.routineTotal} done`);
     lines.push('');
   }
 
@@ -824,7 +865,7 @@ export function categorizeMainPushModel(s: SaleTuple, activeCategoryNames?: stri
 
 export function calculateMainPushBreakdown(
   sales: SaleTuple[],
-  staffList: string[] = DJI_DATA.staff,
+  staffList: string[] = getActiveStaff(),
   monthNum?: number,
   customTargets?: Record<string, number>,
   customVariants?: Record<string, string[]>,
@@ -1084,7 +1125,7 @@ export function calculateMainPushBreakdown(
 
 export function calculatePromoterMonthPerformance(
   sales: SaleTuple[],
-  staffList: string[] = DJI_DATA.staff,
+  staffList: string[] = getActiveStaff(),
   promoterMonthlyTargets: Record<number, number> = { 0: 2400000, 1: 2400000, 2: 2400000 },
   monthNum: number = 9,
   currentDayOffset: number = 83,

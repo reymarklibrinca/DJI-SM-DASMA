@@ -48,6 +48,14 @@
         "updatedAt": {
           "type": "string",
           "description": "Last ISO timestamp when the state was updated"
+        },
+        "staff": {
+          "type": "array",
+          "description": "List of store promoter full names"
+        },
+        "archivedStaff": {
+          "type": "array",
+          "description": "List of promoter indices that have been archived"
         }
       }
     }

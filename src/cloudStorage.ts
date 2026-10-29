@@ -29,7 +29,16 @@ export interface FirestoreErrorInfo {
   };
 }
 
+let lastCloudError: { code: string; message: string } | null = null;
+export function getLastCloudError() {
+  return lastCloudError;
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  lastCloudError = {
+    code: (error as any)?.code || 'unknown',
+    message: error instanceof Error ? error.message : String(error),
+  };
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {},
@@ -166,6 +175,7 @@ export async function saveCloudData(data: any): Promise<boolean> {
     const sanitized = encodeForCloud(JSON.parse(JSON.stringify(data)));
     sanitized.updatedAt = new Date().toISOString();
     await setDoc(storeDoc, sanitized, { merge: true });
+    lastCloudError = null;
     return true;
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -200,6 +210,7 @@ export function subscribeToCloudData(
     storeDoc,
     (snapshot) => {
       if (snapshot.exists()) {
+        if (!snapshot.metadata.fromCache) lastCloudError = null;
         callback(decodeFromCloud(snapshot.data()), { fromCache: snapshot.metadata.fromCache });
       }
     },

@@ -30,27 +30,40 @@ export function reconcileSales(
   localSales: SaleTuple[] = [],
   remoteSales: SaleTuple[] = []
 ): { merged: SaleTuple[]; changed: boolean } {
-  const localMap = new Map<string, SaleTuple>();
-  const merged: SaleTuple[] = [];
-
-  for (const sale of localSales) {
-    if (!sale || !Array.isArray(sale)) continue;
-    const key = getSaleUniqueKey(sale);
-    if (!localMap.has(key)) {
-      localMap.set(key, sale);
-      merged.push(sale);
+  // Group by key as a multiset. Serial-numbered sales are unique (one per SN). Everything else
+  // (accessories, care plans) can legitimately repeat: two identical Rs 999 cases sold by the
+  // same person on the same day are two sales, so we keep the larger count seen on either side
+  // instead of collapsing them into one (which silently dropped real sales on every sync).
+  const group = (list: SaleTuple[]) => {
+    const m = new Map<string, SaleTuple[]>();
+    for (const sale of list) {
+      if (!sale || !Array.isArray(sale)) continue;
+      const key = getSaleUniqueKey(sale);
+      const arr = m.get(key) || [];
+      arr.push(sale);
+      m.set(key, arr);
     }
-  }
-
+    return m;
+  };
+  const L = group(localSales);
+  const R = group(remoteSales);
+  const merged: SaleTuple[] = [];
   let changed = false;
-  for (const remote of remoteSales) {
-    if (!remote || !Array.isArray(remote)) continue;
-    const key = getSaleUniqueKey(remote);
-    if (!localMap.has(key)) {
-      localMap.set(key, remote);
-      merged.push(remote);
+
+  for (const [key, arr] of L) {
+    const isSerial = key.startsWith('SN:');
+    const mine = isSerial ? arr.slice(0, 1) : arr;
+    merged.push(...mine);
+    const theirs = R.get(key) || [];
+    if (!isSerial && theirs.length > mine.length) {
+      merged.push(...theirs.slice(mine.length));
       changed = true;
     }
+  }
+  for (const [key, arr] of R) {
+    if (L.has(key)) continue;
+    merged.push(...(key.startsWith('SN:') ? arr.slice(0, 1) : arr));
+    changed = true;
   }
 
   return { merged, changed };
@@ -323,6 +336,14 @@ export function reconcileStoreState(
       ? remote.staff
       : local.staff;
 
+  // 10. Archived promoters reconcile (same preference rule as the roster itself)
+  const archivedStaff =
+    preferLocal && Array.isArray(local.archivedStaff)
+      ? local.archivedStaff
+      : Array.isArray(remote.archivedStaff)
+      ? remote.archivedStaff
+      : local.archivedStaff;
+
   const reconciled: LocalStorageState = {
     sales: mergedSales,
     tasks: mergedTasks,
@@ -336,6 +357,7 @@ export function reconcileStoreState(
     inventoryUnits: mergedInventoryUnits,
     hasCustomInventory: hasCustom,
     staff,
+    archivedStaff,
   };
 
   return {

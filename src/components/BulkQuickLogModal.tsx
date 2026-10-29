@@ -29,6 +29,7 @@ interface BulkQuickLogModalProps {
   isOpen: boolean;
   onClose: () => void;
   staffList: string[];
+  archivedStaff?: number[];
   initialStaffIndex?: number;
   initialDayOffset?: number;
   finalizedDays: Record<number, { at: string; sa: number; un: number }>;
@@ -65,6 +66,7 @@ export const BulkQuickLogModal: React.FC<BulkQuickLogModalProps> = ({
   isOpen,
   onClose,
   staffList,
+  archivedStaff = [],
   initialStaffIndex = 0,
   initialDayOffset,
   finalizedDays,
@@ -431,6 +433,7 @@ export const BulkQuickLogModal: React.FC<BulkQuickLogModalProps> = ({
               <div className="grid grid-cols-3 gap-2">
                 {staffList.map((staffName, idx) => {
                   const isSelected = selectedStaff === idx;
+                  if (archivedStaff.includes(idx) && !isSelected) return null;
                   return (
                     <button
                       key={staffName}

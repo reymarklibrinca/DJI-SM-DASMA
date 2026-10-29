@@ -30,6 +30,7 @@ import { ImportExcelModal } from './ImportExcelModal';
 interface QuickLogCardProps {
   todayOffset: number;
   staffList: string[];
+  archivedStaff?: number[];
   localSales: SaleTuple[];
   localLeads: Record<number, Record<string, [number, number, number]>>;
   finalizedDays: Record<number, { at: string; sa: number; un: number }>;
@@ -76,6 +77,7 @@ interface QuickLogCardProps {
 export const QuickLogCard: React.FC<QuickLogCardProps> = ({
   todayOffset,
   staffList,
+  archivedStaff = [],
   localSales,
   localLeads,
   finalizedDays,
@@ -95,6 +97,16 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isImportExcelOpen, setIsImportExcelOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<number>(0);
+
+  // If the selected promoter gets archived, move to the first active one
+  const archivedKey = archivedStaff.join(',');
+  useEffect(() => {
+    if (archivedStaff.includes(selectedStaff)) {
+      const first = staffList.findIndex((_, i) => !archivedStaff.includes(i));
+      if (first >= 0) setSelectedStaff(first);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archivedKey, staffList.length]);
   const [selectedDateISO, setSelectedDateISO] = useState<string>(formatISODate(todayOffset));
   const [leadType, setLeadType] = useState<0 | 1 | 2>(0);
   const [snQuery, setSnQuery] = useState<string>('');
@@ -499,11 +511,13 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
                 onChange={(e) => setSelectedStaff(Number(e.target.value))}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
               >
-                {staffList.map((staff, idx) => (
-                  <option key={idx} value={idx}>
-                    {staff}
-                  </option>
-                ))}
+                {staffList.map((staff, idx) =>
+                  archivedStaff.includes(idx) && idx !== selectedStaff ? null : (
+                    <option key={idx} value={idx}>
+                      {staff}{archivedStaff.includes(idx) ? ' (archived)' : ''}
+                    </option>
+                  )
+                )}
               </select>
             </div>
           </div>
@@ -867,6 +881,7 @@ export const QuickLogCard: React.FC<QuickLogCardProps> = ({
 
       {/* Bulk Quick Log Modal Window for Single Promoter */}
       <BulkQuickLogModal
+        archivedStaff={archivedStaff}
         isOpen={isBulkModalOpen}
         onClose={() => setIsBulkModalOpen(false)}
         staffList={staffList}

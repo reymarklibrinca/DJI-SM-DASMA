@@ -17,6 +17,7 @@ import {
   aggregateSales,
   calculateAttachRate,
   calculatePercentChange,
+  aggregateLeadsOverRange,
   CARE_INDEX,
   ACCESSORIES_INDEX,
 } from '../utils/calculations';
@@ -25,6 +26,8 @@ interface CoachTabProps {
   sales: SaleTuple[];
   periodRange: PeriodRange;
   staffList: string[];
+  archivedStaff?: number[];
+  localLeads?: Record<number, Record<string, [number, number, number]>>;
   stockMetrics: {
     rows: StockSeriesCover[];
     totalUnitsInStock: number;
@@ -36,6 +39,8 @@ export const CoachTab: React.FC<CoachTabProps> = ({
   sales,
   periodRange,
   staffList,
+  archivedStaff = [],
+  localLeads = {},
   stockMetrics,
 }) => {
   const currentAgg = aggregateSales(sales, periodRange.a, periodRange.b, staffList);
@@ -44,17 +49,21 @@ export const CoachTab: React.FC<CoachTabProps> = ({
   // Staff growth ranking
   const staffByGrowth = staffList
     .map((name, i) => {
-      const sa = currentAgg.st[i][0];
-      const prevSa = prevAgg.st[i][0];
+      const row = currentAgg.st[i] || [0, 0, 0, 0];
+      const sa = row[0];
+      const prevSa = (prevAgg.st[i] || [0, 0, 0, 0])[0];
       const change = calculatePercentChange(sa, prevSa);
-      const un = currentAgg.st[i][1];
-      const care = currentAgg.st[i][2];
-      const hw = currentAgg.st[i][3];
+      const un = row[1];
+      const care = row[2];
+      const hw = row[3];
       const attach = calculateAttachRate(care, hw);
       return { index: i, name, sa, prevSa, change, un, care, hw, attach };
     })
+    // Archived promoters keep their history but are not coached
+    .filter((s) => !archivedStaff.includes(s.index))
     .sort((a, b) => b.change - a.change);
 
+  const hasSales = currentAgg.sa > 0;
   const starStaff = staffByGrowth[0];
   const supportStaff = staffByGrowth[staffByGrowth.length - 1];
 
@@ -100,6 +109,20 @@ export const CoachTab: React.FC<CoachTabProps> = ({
     .sort((a, b) => b.in - a.in)
     .slice(0, 3);
 
+  // Lead conversion: hardware units sold per logged lead, per active promoter (needs 5+ leads)
+  const leadsData = aggregateLeadsOverRange(periodRange.a, periodRange.b, sales, localLeads);
+  const conversion = staffByGrowth
+    .map((s) => {
+      const l = leadsData.perPromoter[String(s.index)] || [0, 0, 0];
+      const leads = l[0] + l[1] + l[2];
+      return { ...s, leads, rate: leads > 0 ? s.hw / leads : 0 };
+    })
+    .filter((s) => s.leads >= 5)
+    .sort((a, b) => a.rate - b.rate);
+  const lowestConv = conversion.length > 1 ? conversion[0] : null;
+  const bestConv = conversion.length > 1 ? conversion[conversion.length - 1] : null;
+  const storeUnitsPerLead = leadsData.total > 0 ? leadsData.hwUnits / leadsData.total : null;
+
   // Best day to staff
   const dowAverages = [1, 2, 3, 4, 5, 6, 0].map((d) => {
     const total = currentAgg.dow[d];
@@ -129,6 +152,14 @@ export const CoachTab: React.FC<CoachTabProps> = ({
 
       {/* Advisory Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {!hasSales && (
+          <div className="md:col-span-2 bg-amber-50 border border-amber-200 rounded-2xl p-5 text-xs text-amber-900">
+            <strong>No sales logged in this period yet.</strong> Growth and promoter coaching start once sales are
+            recorded. Stock, merchandising and roster advice below still apply.
+          </div>
+        )}
+
+        {hasSales && (<>
         {/* Star of the Period */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex flex-col justify-between">
           <div>
@@ -174,6 +205,8 @@ export const CoachTab: React.FC<CoachTabProps> = ({
             Action: 1-on-1 closing roleplay before noon shift
           </div>
         </div>
+
+        </>)}
 
         {/* DJI Care Attach */}
         {lowestCareStaff && (
@@ -282,6 +315,39 @@ export const CoachTab: React.FC<CoachTabProps> = ({
           </div>
         </div>
 
+        {/* Lead Conversion */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">
+              <Users className="w-4 h-4" />
+              Lead Conversion
+            </div>
+            {lowestConv && bestConv ? (
+              <>
+                <h4 className="text-base font-bold text-slate-900 mb-2">
+                  {lowestConv.name} converts the fewest leads into hardware sales
+                </h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {lowestConv.name} sold <strong>{lowestConv.rate.toFixed(2)}</strong> hardware units per lead from{' '}
+                  {lowestConv.leads} logged leads, versus <strong>{bestConv.rate.toFixed(2)}</strong> for {bestConv.name}.
+                  {storeUnitsPerLead !== null && <> Store average: {storeUnitsPerLead.toFixed(2)} units per lead.</>}
+                </p>
+              </>
+            ) : (
+              <>
+                <h4 className="text-base font-bold text-slate-900 mb-2">Not enough lead data yet</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Log at least 5 leads for two or more promoters in this period to compare conversion.
+                  {storeUnitsPerLead !== null && <> Store average: {storeUnitsPerLead.toFixed(2)} hardware units per lead.</>}
+                </p>
+              </>
+            )}
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] font-semibold text-slate-500">
+            Action: Pair the lower converter with the stronger closer on busy shifts
+          </div>
+        </div>
+
         {/* Best Day to Staff */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex flex-col justify-between">
           <div>
@@ -290,10 +356,14 @@ export const CoachTab: React.FC<CoachTabProps> = ({
               Peak Roster Optimization
             </div>
             <h4 className="text-base font-bold text-slate-900 mb-2">
-              {bestDay?.name} has the highest average volume
+              {bestDay && bestDay.avg > 0 ? `${bestDay.name} has the highest average volume` : 'No sales pattern yet'}
             </h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Historical records show <strong>{bestDay?.name}</strong> averages the highest sales volume per shift. Keep your highest-converting closers rostered on this day and schedule stock counting on slower weekdays (e.g. Tuesdays/Wednesdays).
+              {bestDay && bestDay.avg > 0 ? (
+                <>Historical records show <strong>{bestDay.name}</strong> averages the highest sales volume per shift. Keep your highest-converting closers rostered on this day and schedule stock counting on the slowest day.</>
+              ) : (
+                <>Log sales for a few days and the busiest weekday will show here.</>
+              )}
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] font-semibold text-slate-500">

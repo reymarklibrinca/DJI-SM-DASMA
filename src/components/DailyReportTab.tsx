@@ -13,7 +13,7 @@ import {
   ChevronRight,
   RotateCcw,
 } from 'lucide-react';
-import { DAYS_OF_WEEK, DJI_DATA, MAIN_PUSH_TARGETS, LEAD_TYPE_NAMES } from '../data/initialData';
+import { DAYS_OF_WEEK, DJI_DATA, MAIN_PUSH_TARGETS, LEAD_TYPE_NAMES, ROUTINE_TASKS } from '../data/initialData';
 import { SaleTuple } from '../types';
 import {
   aggregateSales,
@@ -40,11 +40,13 @@ interface DailyReportTabProps {
   dailyGoal: number;
   promoterMonthlyTargets: Record<number, number>;
   localLeads: Record<number, Record<string, [number, number, number]>>;
+  localTasks?: Record<string, boolean[]>;
   onToggleFinalize: (dayOffset: number) => void;
   onResetLeads?: (dayOffset: number) => void;
 }
 
 export const DailyReportTab: React.FC<DailyReportTabProps> = ({
+  localTasks,
   isTodayMode,
   selectedDayOffset,
   onSelectDayOffset,
@@ -110,7 +112,11 @@ export const DailyReportTab: React.FC<DailyReportTabProps> = ({
   const itemsSoldToday = sales.filter((s) => s[0] === selectedDayOffset && !s[5]);
 
   // Share report text
-  const shareText = generateDailyReportText(selectedDayOffset, sales, dailyGoal, staffList);
+  const shareText = generateDailyReportText(selectedDayOffset, sales, dailyGoal, staffList, {
+    localLeads,
+    tasks: localTasks,
+    routineTotal: ROUTINE_TASKS.length,
+  });
 
   const handleCopy = () => {
     navigator.clipboard.writeText(shareText);

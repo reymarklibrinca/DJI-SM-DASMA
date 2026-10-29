@@ -1,3 +1,4 @@
+import { getLastCloudError } from '../cloudStorage';
 import React, { useState } from 'react';
 import {
   Download,
@@ -117,7 +118,11 @@ export const Header: React.FC<HeaderProps> = ({
                   )}
                   {cloudSyncStatus === 'offline' && (
                     <span className="inline-flex items-center gap-1 text-amber-800">
-                      <span>⚠️ Local Mode (Retry Sync)</span>
+                      <span>
+                        {getLastCloudError()?.code === 'permission-denied'
+                          ? '⚠️ Cloud rules rejected the save: republish firestore.rules'
+                          : '⚠️ Local Mode (Retry Sync)'}
+                      </span>
                       <RefreshCw className="w-3 h-3 text-amber-700 ml-0.5 group-hover:rotate-180 transition-transform duration-300" />
                     </span>
                   )}

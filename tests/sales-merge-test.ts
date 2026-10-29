@@ -1,0 +1,17 @@
+import { reconcileSales } from '../src/utils/syncReconciliation';
+import { aggregateSales } from '../src/utils/calculations';
+const o: string[] = []; let f = 0; const ok = (c: boolean, m: string) => { o.push((c ? 'PASS ' : 'FAIL ') + m); if (!c) f++; };
+const acc = (day: number) => [day, 0, 1, 999, 1, 0, '', 0] as any;
+let r = reconcileSales([acc(5), acc(5)], [acc(5), acc(5)]);
+ok(r.merged.length === 2 && !r.changed, 'two identical accessory sales stay two after sync (was collapsed to one)');
+r = reconcileSales([acc(5)], [acc(5), acc(5), acc(5)]);
+ok(r.merged.length === 3 && r.changed, 'a second device that logged more identical sales adds them');
+r = reconcileSales([acc(5), acc(5), acc(5)], [acc(5)]);
+ok(r.merged.length === 3 && !r.changed, 'local extras are never dropped');
+const sn = (d: number, s: string) => [d, 0, 0, 40000, 1, 0, s, 0] as any;
+r = reconcileSales([sn(5, 'abc'), sn(5, 'ABC')], [sn(5, 'ABC'), sn(6, 'XYZ')]);
+ok(r.merged.length === 2, 'same serial number is still counted once');
+const held = [[5, 0, 0, 40000, 1, 1, 'H1', 0], [5, 0, 0, 10000, 1, 0, 'S1', 0]] as any;
+const a1 = aggregateSales(held, 5, 5), a2 = aggregateSales(held, 0, 10);
+ok(a1.sa === 10000 && a2.sa === 10000 && a2.un === 1, 'held items excluded the same way in day view and period view');
+console.log(o.join('\n') + `\n${f ? f + ' FAILED' : 'ALL PASSED'}`);

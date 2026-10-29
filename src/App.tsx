@@ -96,6 +96,7 @@ export default function App() {
         {store.activeTab === 't' && (
           <div className="space-y-8">
             <DailyReportTab
+            localTasks={store.localTasks}
               isTodayMode={true}
               selectedDayOffset={store.todayDayOffset}
               onSelectDayOffset={() => {}}
@@ -112,6 +113,7 @@ export default function App() {
             {/* Quick Log POS & Activity Feed Card - ONLY IN TODAY TAB */}
             <div ref={quickLogRef} className="pt-2">
               <QuickLogCard
+                archivedStaff={store.archivedStaff}
                 todayOffset={store.todayDayOffset}
                 staffList={store.staff}
                 localSales={store.localSales}
@@ -135,6 +137,7 @@ export default function App() {
 
         {store.activeTab === 'y' && (
           <DailyReportTab
+            localTasks={store.localTasks}
             isTodayMode={false}
             selectedDayOffset={dailyReportOffset}
             onSelectDayOffset={store.setReviewDayOffset}
@@ -169,6 +172,9 @@ export default function App() {
             onUpdateStaff={store.updateStaff}
             onUpdatePromoterName={store.updatePromoterName}
             onAddPromoter={store.addPromoter}
+            archivedStaff={store.archivedStaff}
+            onArchivePromoter={store.archivePromoter}
+            onRestorePromoter={store.restorePromoter}
             onRemovePromoter={store.removePromoter}
             onResetStaffToDefault={store.resetStaffToDefault}
           />
@@ -215,6 +221,8 @@ export default function App() {
 
         {store.activeTab === 'c' && (
           <CoachTab
+            archivedStaff={store.archivedStaff}
+            localLeads={store.localLeads}
             sales={store.allSales}
             periodRange={store.periodRange}
             staffList={store.staff}
