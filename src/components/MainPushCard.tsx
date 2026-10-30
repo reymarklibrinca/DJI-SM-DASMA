@@ -56,9 +56,26 @@ export const MAIN_PUSH_CATALOG: Record<string, CatalogEntry> = {
       'DJI Mini 4 Pro',
     ],
   },
+  'NEO 2 SERIES': {
+    u: 'Drone',
+    p: [
+      'DJI NEO 2 MOTION FLY MORE COMBO',
+      'DJI NEO 2 FLY MORE COMBO',
+      'DJI Neo 2 Fly More Combo (Drone Only)',
+      'DJI NEO 2',
+      'DJI NEO MOTION FLY MORE COMBO',
+      'DJI NEO FLY MORE COMBO',
+      'DJI NEO',
+      'DJI NEO COMBO (GLOBAL)',
+    ],
+  },
   'NEO SERIES': {
     u: 'Drone',
     p: [
+      'DJI NEO 2 MOTION FLY MORE COMBO',
+      'DJI NEO 2 FLY MORE COMBO',
+      'DJI Neo 2 Fly More Combo (Drone Only)',
+      'DJI NEO 2',
       'DJI NEO MOTION FLY MORE COMBO',
       'DJI NEO FLY MORE COMBO',
       'DJI NEO',
@@ -185,7 +202,7 @@ export const SOURCE_DATA: {
       ],
     },
     {
-      name: 'NEO SERIES',
+      name: 'NEO 2 SERIES',
       unit: 'Drone',
       target_mode: 'total_split_equally',
       store_target: 18,
@@ -198,8 +215,12 @@ export const SOURCE_DATA: {
       },
       total_sold: 14,
       remaining: 4,
-      catalog_series: ['NEO SERIES'],
+      catalog_series: ['NEO 2 SERIES'],
       products: [
+        'DJI NEO 2 MOTION FLY MORE COMBO',
+        'DJI NEO 2 FLY MORE COMBO',
+        'DJI Neo 2 Fly More Combo (Drone Only)',
+        'DJI NEO 2',
         'DJI NEO MOTION FLY MORE COMBO',
         'DJI NEO FLY MORE COMBO',
         'DJI NEO',
@@ -229,7 +250,7 @@ export const SOURCE_DATA: {
       ],
     },
     {
-      name: 'OA SERIES',
+      name: 'OSMO ACTION 6 SERIES',
       unit: 'Handheld',
       target_mode: 'total_split_equally',
       store_target: 54,
@@ -258,7 +279,7 @@ export const SOURCE_DATA: {
       ],
     },
     {
-      name: 'POCKET 4 SERIES',
+      name: 'OSMO POCKET 4 SERIES',
       unit: 'Handheld',
       target_mode: 'total_split_equally',
       store_target: 45,
@@ -399,8 +420,9 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
       const previousByName = new Map<string, SeriesConfigItem>();
       prev.forEach((item) => {
         const name = canonicalMainPushName(item.n);
-        const existing = previousByName.get(name);
-        previousByName.set(name, {
+        const normKey = normalizeSeriesKey(name);
+        const existing = previousByName.get(normKey);
+        previousByName.set(normKey, {
           ...item,
           n: name,
           t: existing ? Math.max(existing.t, item.t) : item.t,
@@ -412,25 +434,28 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
       const normalizedTargets = new Map<string, { name: string; target: number }>();
       Object.entries(mainPushTargets).forEach(([rawName, target]) => {
         const name = canonicalMainPushName(rawName);
-        const existing = normalizedTargets.get(name);
-        if (!existing || name === rawName) {
-          normalizedTargets.set(name, { name, target });
+        const normKey = normalizeSeriesKey(name);
+        const existing = normalizedTargets.get(normKey);
+        if (!existing) {
+          normalizedTargets.set(normKey, { name, target });
+        } else {
+          normalizedTargets.set(normKey, { name: existing.name, target: Math.max(existing.target, target) });
         }
       });
 
       const next: SeriesConfigItem[] = [];
-      normalizedTargets.forEach(({ name, target }) => {
-        const existing = previousByName.get(name);
-        const catalogItem = MAIN_PUSH_CATALOG[name];
+      normalizedTargets.forEach(({ name, target }, normKey) => {
+        const existing = previousByName.get(normKey);
+        const catalogItem = MAIN_PUSH_CATALOG[name] || MAIN_PUSH_CATALOG[canonicalMainPushName(name)];
         const customVar =
           mainPushVariants?.[name] ||
           Object.entries(mainPushVariants || {}).find(
-            ([rawName]) => canonicalMainPushName(rawName) === name
+            ([rawName]) => normalizeSeriesKey(canonicalMainPushName(rawName)) === normKey
           )?.[1];
         const customDiv =
           mainPushDividers?.[name] ??
           Object.entries(mainPushDividers || {}).find(
-            ([rawName]) => canonicalMainPushName(rawName) === name
+            ([rawName]) => normalizeSeriesKey(canonicalMainPushName(rawName)) === normKey
           )?.[1];
         next.push({
           ...(existing || {
@@ -453,6 +478,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
       return next.length > 0 ? next : prev;
     });
   }, [mainPushTargets, mainPushVariants, mainPushDividers, N, staff]);
+
 
   // Compute live sales per series and per promoter from currentMonthSales
   const computedCfg = useMemo(() => {
@@ -520,6 +546,24 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
     });
   }, [cfg, currentMonthSales, staff, unitsBySn]);
 
+  // Deduplicate series items to guarantee zero double entries for the same series
+  const deduplicatedCfg = useMemo(() => {
+    const map = new Map<string, SeriesConfigItem>();
+    computedCfg.forEach((item) => {
+      const canon = canonicalMainPushName(item.n);
+      const key = normalizeSeriesKey(canon);
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...item, n: canon });
+      } else {
+        existing.t = Math.max(existing.t, item.t);
+        existing.s = existing.s.map((val, idx) => Math.max(val, item.s[idx] || 0));
+        existing.p = Array.from(new Set([...existing.p, ...item.p]));
+      }
+    });
+    return Array.from(map.values());
+  }, [computedCfg]);
+
   // Calculations for a series item
   const calc = (d: SeriesConfigItem) => {
     const T = d.m === 'total' ? d.t : d.t * d.div;
@@ -556,7 +600,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
 
   // Grand summary across all series
   const allSummary = useMemo(() => {
-    return computedCfg.reduce(
+    return deduplicatedCfg.reduce(
       (a, d) => {
         const c = calc(d);
         return {
@@ -569,7 +613,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
       },
       { T: 0, S: 0, R: 0, hit: 0, n: 0 }
     );
-  }, [computedCfg]);
+  }, [deduplicatedCfg]);
 
   const allAchievedPct = allSummary.T
     ? Math.min(100, (allSummary.S / allSummary.T) * 100)
@@ -577,7 +621,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
 
   // Group summary by unit type (Drone, Handheld, Audio, etc.)
   const gsum = (unitName: string) => {
-    return computedCfg
+    return deduplicatedCfg
       .filter((d) => d.u === unitName)
       .reduce(
         (a, d) => {
@@ -597,17 +641,18 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
   // Promoter totals for footer
   const promoterTotals = useMemo(() => {
     return staff.map((_, i) => {
-      return computedCfg.reduce((a, d) => a + (d.s[i] || 0), 0);
+      return deduplicatedCfg.reduce((a, d) => a + (d.s[i] || 0), 0);
     });
-  }, [computedCfg, staff]);
+  }, [deduplicatedCfg, staff]);
 
   const totalPerPersonTarget = useMemo(() => {
     let tpp = 0;
-    computedCfg.forEach((d) => {
+    deduplicatedCfg.forEach((d) => {
       tpp += Math.ceil(calc(d).T / Math.max(1, Math.min(N, d.div)));
     });
     return tpp;
-  }, [computedCfg, N]);
+  }, [deduplicatedCfg, N]);
+
 
   // Modals state
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -755,8 +800,11 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
 
   // Catalog items available to add (not yet in draft)
   const availableCatalogToAdd = useMemo(() => {
+    const existingKeys = new Set(
+      draft.map((d) => normalizeSeriesKey(canonicalMainPushName(d.n)))
+    );
     return Object.keys(MAIN_PUSH_CATALOG).filter(
-      (s) => !draft.some((d) => d.n === s)
+      (s) => !existingKeys.has(normalizeSeriesKey(canonicalMainPushName(s)))
     );
   }, [draft]);
 
@@ -765,18 +813,19 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
     const groups: { unit: string; items: SeriesConfigItem[] }[] = [];
     const seen = new Set<string>();
 
-    computedCfg.forEach((item) => {
+    deduplicatedCfg.forEach((item) => {
       if (!seen.has(item.u)) {
         seen.add(item.u);
         groups.push({
           unit: item.u,
-          items: computedCfg.filter((x) => x.u === item.u),
+          items: deduplicatedCfg.filter((x) => x.u === item.u),
         });
       }
     });
 
     return groups;
-  }, [computedCfg]);
+  }, [deduplicatedCfg]);
+
 
   return (
     <div className="w-full">
@@ -1062,7 +1111,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {computedCfg.map((d) => {
+                  {deduplicatedCfg.map((d) => {
                     const c = calc(d);
                     const sh = shares(d);
                     return (

@@ -21,8 +21,11 @@ import {
   Check,
   ArrowRight,
   Sparkles,
+  Wrench,
+  Edit2,
+  X,
 } from 'lucide-react';
-import { UnitTuple } from '../types';
+import { UnitTuple, StockTuple } from '../types';
 import { DJI_DATA } from '../data/initialData';
 import { formatCurrency } from '../utils/calculations';
 
@@ -67,6 +70,8 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [importMode, setImportMode] = useState<'append' | 'override'>('append');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [previewFilter, setPreviewFilter] = useState<'all' | 'valid' | 'issues'>('all');
+  const [editingInvRow, setEditingInvRow] = useState<ParsedInventoryRow | null>(null);
 
   // Quick Single-Unit Input Form
   const [manualEan, setManualEan] = useState('');
@@ -386,6 +391,114 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
     // Reset upload preview
     setFile(null);
     setParsedRows([]);
+    setEditingInvRow(null);
+  };
+
+  // Auto-Fix All Inventory Rows with Errors or Missing Data
+  const handleAutoFixAllInventory = () => {
+    let fixCount = 0;
+    const seenSn = new Set<string>();
+
+    const updated = parsedRows.map((r) => {
+      let isChanged = false;
+      let newSn = (r.serialNumber || '').trim().toUpperCase();
+      let newEan = (r.ean || '').trim();
+      let newProduct = r.productName.trim();
+      let newSeries = r.seriesName.trim();
+      let newPrice = r.price;
+
+      // 1. Resolve missing product by EAN
+      if ((!newProduct || newProduct === 'DJI Unit') && newEan) {
+        const u = DJI_DATA.units.find((unit) => unit[5] === newEan);
+        if (u) {
+          newProduct = u[1];
+          newSeries = u[3];
+          if (!newPrice) newPrice = u[2];
+          isChanged = true;
+        }
+      }
+
+      // 2. Resolve missing series and price from catalog
+      if (newProduct) {
+        const catItem = productLookupMap.get(newProduct.toUpperCase());
+        if (catItem) {
+          if (!newSeries || newSeries === 'GENERAL') {
+            newSeries = catItem.series;
+            isChanged = true;
+          }
+          if (!newPrice || newPrice <= 0) {
+            newPrice = catItem.price;
+            isChanged = true;
+          }
+        }
+      }
+
+      if (!newSeries) newSeries = 'GENERAL';
+
+      // 3. Resolve missing SN
+      if (!newSn || newSn.length < 3) {
+        newSn = `GEN-${Date.now().toString().slice(-6)}-${r.rowNumber.toString().padStart(3, '0')}`;
+        isChanged = true;
+      }
+
+      // 4. Resolve duplicates in file
+      if (seenSn.has(newSn)) {
+        newSn = `${newSn}-D${r.rowNumber}`;
+        isChanged = true;
+      }
+      seenSn.add(newSn);
+
+      const isExistingInStore = existingSnSet.has(newSn);
+      const isValid = newSn.length >= 3 && Boolean(newProduct);
+      if (isChanged || !r.isValid) fixCount++;
+
+      return {
+        ...r,
+        serialNumber: newSn,
+        ean: newEan,
+        productName: newProduct,
+        seriesName: newSeries,
+        price: newPrice,
+        isValid,
+        isDuplicateInFile: false,
+        isExistingInStore,
+        statusNote: isValid
+          ? isChanged
+            ? 'Auto-Fixed & Validated'
+            : isExistingInStore
+            ? 'Already in store (will update)'
+            : 'Ready to import'
+          : 'Missing product or SN',
+      };
+    });
+
+    setParsedRows(updated);
+    setFeedback({
+      type: 'success',
+      message: `Auto-repair complete! Corrected and validated ${fixCount} inventory item(s).`,
+    });
+  };
+
+  const handleSaveInvRowEdit = (updated: ParsedInventoryRow) => {
+    const isValid = updated.serialNumber.trim().length >= 3 && updated.productName.trim().length > 0;
+    const finalRow: ParsedInventoryRow = {
+      ...updated,
+      serialNumber: updated.serialNumber.trim().toUpperCase(),
+      productName: updated.productName.trim(),
+      isValid,
+      statusNote: isValid ? 'Manually Fixed & Verified' : 'Missing SN or Product Name',
+    };
+    setParsedRows((prev) =>
+      prev.map((r) => (r.rowNumber === updated.rowNumber ? finalRow : r))
+    );
+    setEditingInvRow(null);
+  };
+
+  const handleDeleteInvRow = (rowNumber: number) => {
+    setParsedRows((prev) => prev.filter((r) => r.rowNumber !== rowNumber));
+    if (editingInvRow?.rowNumber === rowNumber) {
+      setEditingInvRow(null);
+    }
   };
 
   // Quick Manual Add Unit
@@ -758,6 +871,83 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
               </label>
             </div>
 
+            {/* Auto-Repair Issues Banner */}
+            {parsedRows.some((r) => !r.isValid || r.isDuplicateInFile) && (
+              <div className="p-3.5 bg-amber-50/80 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-150 shadow-2xs">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold text-amber-900 text-xs flex items-center gap-1.5">
+                      <span>
+                        Data Cleaning Required: {parsedRows.filter((r) => !r.isValid || r.isDuplicateInFile).length} item(s) need attention
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 mt-0.5">
+                      Missing serial numbers, unmatched barcodes, or duplicates detected. Auto-repair matches products to catalog and generates clean tracking SNs.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleAutoFixAllInventory}
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-200 animate-pulse" />
+                    <span>Auto-Fix File Data ({parsedRows.filter((r) => !r.isValid || r.isDuplicateInFile).length})</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Filter Pills */}
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setPreviewFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                    previewFilter === 'all'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All ({parsedRows.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFilter('valid')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                    previewFilter === 'valid'
+                      ? 'bg-white text-emerald-800 shadow-2xs'
+                      : 'text-emerald-700 hover:text-emerald-900'
+                  }`}
+                >
+                  Ready ({parsedRows.filter((r) => r.isValid && !r.isDuplicateInFile).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFilter('issues')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                    previewFilter === 'issues'
+                      ? 'bg-white text-amber-900 shadow-2xs'
+                      : 'text-amber-700 hover:text-amber-900'
+                  }`}
+                >
+                  <span>Needs Fix</span>
+                  {parsedRows.some((r) => !r.isValid || r.isDuplicateInFile) && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black">
+                      {parsedRows.filter((r) => !r.isValid || r.isDuplicateInFile).length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div className="text-[11px] text-slate-500">
+                Showing {previewFilter === 'all' ? parsedRows.length : previewFilter === 'valid' ? parsedRows.filter((r) => r.isValid && !r.isDuplicateInFile).length : parsedRows.filter((r) => !r.isValid || r.isDuplicateInFile).length} rows
+              </div>
+            </div>
+
             {/* Parsed Rows Preview Table */}
             <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
               <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs font-bold text-slate-700">
@@ -767,53 +957,80 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
                 </span>
               </div>
               <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 text-xs">
-                {parsedRows.slice(0, 50).map((r, idx) => (
-                  <div
-                    key={idx}
-                    className={`px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
-                      !r.isValid ? 'bg-rose-50/60' : r.isDuplicateInFile ? 'bg-amber-50/50' : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] text-slate-400 font-mono w-6">#{r.rowNumber}</span>
-                      <div>
-                        <div className="font-mono font-bold text-slate-900 flex items-center gap-2">
-                          <span>{r.serialNumber || '–'}</span>
-                          {r.ean && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-mono border border-slate-200">
-                              EAN: {r.ean}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-slate-600">
-                          {r.productName}{' '}
-                          <span className="text-slate-400">({r.seriesName})</span>
+                {(previewFilter === 'valid'
+                  ? parsedRows.filter((r) => r.isValid && !r.isDuplicateInFile)
+                  : previewFilter === 'issues'
+                  ? parsedRows.filter((r) => !r.isValid || r.isDuplicateInFile)
+                  : parsedRows
+                )
+                  .slice(0, 50)
+                  .map((r, idx) => (
+                    <div
+                      key={idx}
+                      className={`px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                        !r.isValid ? 'bg-rose-50/60' : r.isDuplicateInFile ? 'bg-amber-50/50' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-slate-400 font-mono w-6">#{r.rowNumber}</span>
+                        <div>
+                          <div className="font-mono font-bold text-slate-900 flex items-center gap-2">
+                            <span>{r.serialNumber || '–'}</span>
+                            {r.ean && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-mono border border-slate-200">
+                                EAN: {r.ean}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-600">
+                            {r.productName}{' '}
+                            <span className="text-slate-400">({r.seriesName})</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-3 text-right shrink-0">
-                      <div className="text-right">
+                      <div className="flex items-center gap-3 text-right shrink-0">
+                        <div className="text-right">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              r.status === 'IN STOCK' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {r.status}
+                          </span>
+                        </div>
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            r.status === 'IN STOCK' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                            r.isValid
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-rose-100 text-rose-800'
                           }`}
                         >
-                          {r.status}
+                          {r.statusNote}
                         </span>
+
+                        <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setEditingInvRow(r)}
+                            className="px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Edit & fix this item"
+                          >
+                            <Wrench className="w-3 h-3 text-blue-600" />
+                            <span>Fix</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteInvRow(r.rowNumber)}
+                            className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Discard this row"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                          r.isValid
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-rose-100 text-rose-800'
-                        }`}
-                      >
-                        {r.statusNote}
-                      </span>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
               {parsedRows.length > 50 && (
                 <div className="p-2.5 bg-slate-50 text-center text-xs text-slate-500 border-t border-slate-200">
@@ -1192,6 +1409,314 @@ export const ImportInventoryTab: React.FC<ImportInventoryTabProps> = ({
               className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+      {/* Fix Single Inventory Item Modal */}
+      {editingInvRow && (
+        <FixInventoryRowDialog
+          row={editingInvRow}
+          productCatalog={productCatalog}
+          onSave={handleSaveInvRowEdit}
+          onDelete={handleDeleteInvRow}
+          onClose={() => setEditingInvRow(null)}
+          allRows={parsedRows}
+          onSelectNext={(nextRow) => setEditingInvRow(nextRow)}
+        />
+      )}
+    </div>
+  );
+};
+
+interface FixInventoryRowDialogProps {
+  row: ParsedInventoryRow;
+  productCatalog: StockTuple[];
+  onSave: (updated: ParsedInventoryRow) => void;
+  onDelete: (rowNumber: number) => void;
+  onClose: () => void;
+  allRows: ParsedInventoryRow[];
+  onSelectNext: (next: ParsedInventoryRow) => void;
+}
+
+const FixInventoryRowDialog: React.FC<FixInventoryRowDialogProps> = ({
+  row,
+  productCatalog,
+  onSave,
+  onDelete,
+  onClose,
+  allRows,
+  onSelectNext,
+}) => {
+  const [sn, setSn] = useState(row.serialNumber);
+  const [productName, setProductName] = useState(row.productName);
+  const [seriesName, setSeriesName] = useState(row.seriesName);
+  const [price, setPrice] = useState(row.price);
+  const [status, setStatus] = useState<'IN STOCK' | 'SOLD'>(row.status);
+  const [ean, setEan] = useState(row.ean || '');
+  const [catalogSearch, setCatalogSearch] = useState('');
+
+  const otherIssues = useMemo(() => {
+    return allRows.filter(
+      (r) => r.rowNumber !== row.rowNumber && (!r.isValid || r.isDuplicateInFile)
+    );
+  }, [allRows, row.rowNumber]);
+
+  const filteredCatalog = useMemo(() => {
+    if (!catalogSearch.trim()) return productCatalog.slice(0, 15);
+    const q = catalogSearch.toLowerCase().trim();
+    return productCatalog
+      .filter((p) => p[1].toLowerCase().includes(q) || p[0].toLowerCase().includes(q))
+      .slice(0, 20);
+  }, [catalogSearch, productCatalog]);
+
+  const handleSelectProduct = (prod: StockTuple) => {
+    setProductName(prod[1]);
+    setSeriesName(prod[0]);
+    setPrice(prod[2]);
+    setCatalogSearch('');
+  };
+
+  const handleAutoGenerateSn = () => {
+    setSn(`DJI-${Date.now().toString().slice(-6)}-${row.rowNumber.toString().padStart(3, '0')}`);
+  };
+
+  const handleSaveAndClose = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const updated: ParsedInventoryRow = {
+      ...row,
+      serialNumber: sn.trim().toUpperCase(),
+      productName: productName.trim() || 'DJI Unit',
+      seriesName: seriesName || 'GENERAL',
+      price: Number(price) || 0,
+      status,
+      ean: ean.trim(),
+    };
+    onSave(updated);
+  };
+
+  const handleSaveAndNext = () => {
+    const updated: ParsedInventoryRow = {
+      ...row,
+      serialNumber: sn.trim().toUpperCase(),
+      productName: productName.trim() || 'DJI Unit',
+      seriesName: seriesName || 'GENERAL',
+      price: Number(price) || 0,
+      status,
+      ean: ean.trim(),
+    };
+    onSave(updated);
+    if (otherIssues.length > 0) {
+      onSelectNext(otherIssues[0]);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+              <Wrench className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm text-slate-900">
+                  Fix Inventory Item - Row #{row.rowNumber}
+                </h3>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    row.isValid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  {row.statusNote}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Ensure accurate serial number and product mapping before receiving into store
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body Form */}
+        <form onSubmit={handleSaveAndClose} className="p-5 overflow-y-auto space-y-4 text-xs flex-1">
+          {/* Quick Product Matcher from Catalog */}
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Select from Official DJI Catalog</span>
+              </span>
+              <span className="text-[10px] text-slate-500">Auto-sets category & SRP</span>
+            </div>
+            <div className="relative">
+              <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                placeholder="Search DJI Catalog (e.g., Action 5, Pocket 3, Neo, Mini 4 Pro, Mic 2)..."
+                className="w-full pl-7 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+              />
+            </div>
+            {filteredCatalog.length > 0 && (
+              <div className="max-h-28 overflow-y-auto divide-y divide-slate-100 bg-white border border-slate-200 rounded-lg text-[11px]">
+                {filteredCatalog.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectProduct(item)}
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-emerald-50 flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="font-bold text-slate-900">{item[1]}</div>
+                      <div className="text-[10px] text-slate-500">{item[0]}</div>
+                    </div>
+                    <span className="font-mono font-bold text-emerald-700 ml-2">
+                      {formatCurrency(item[2])}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Serial Number & Auto-Gen */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-bold text-slate-700">
+                Serial Number (SN) *
+              </label>
+              <button
+                type="button"
+                onClick={handleAutoGenerateSn}
+                className="text-[10px] text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer"
+              >
+                Auto-Generate Serial Code
+              </button>
+            </div>
+            <input
+              type="text"
+              required
+              placeholder="e.g. 1581F5GBA247A0001"
+              value={sn}
+              onChange={(e) => setSn(e.target.value.toUpperCase())}
+              className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900 uppercase focus:ring-1 focus:ring-emerald-500 text-sm"
+            />
+          </div>
+
+          {/* Product Name & Series */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Product SKU / Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Series / Category
+              </label>
+              <input
+                type="text"
+                value={seriesName}
+                onChange={(e) => setSeriesName(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* EAN, Price, Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                EAN / Barcode
+              </label>
+              <input
+                type="text"
+                value={ean}
+                onChange={(e) => setEan(e.target.value)}
+                placeholder="694..."
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Price (SRP ₱)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={price}
+                onChange={(e) => setPrice(Number(e.target.value))}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Stock Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as 'IN STOCK' | 'SOLD')}
+                className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-xs"
+              >
+                <option value="IN STOCK">IN STOCK</option>
+                <option value="SOLD">SOLD</option>
+              </select>
+            </div>
+          </div>
+        </form>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => onDelete(row.rowNumber)}
+            className="px-3 py-1.5 text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg font-bold flex items-center gap-1 transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Discard Item</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            {otherIssues.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSaveAndNext}
+                className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg font-bold transition-colors cursor-pointer"
+              >
+                Save & Fix Next ({otherIssues.length})
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => handleSaveAndClose()}
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>Save & Validate</span>
             </button>
           </div>
         </div>
