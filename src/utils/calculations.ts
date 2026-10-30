@@ -53,6 +53,17 @@ export const ACCESSORIES_INDEX = DJI_DATA.ser.findIndex(
   (s) => s === 'ACCESSORIES' || s.includes('ACCESSORIES')
 );
 
+const MAIN_PUSH_NAME_ALIASES: Record<string, string> = {
+  'OA SERIES': 'OSMO ACTION 6 SERIES',
+  'POCKET 4 SERIES': 'OSMO POCKET 4 SERIES',
+  'NEO SERIES': 'NEO 2 SERIES',
+};
+
+export function canonicalMainPushName(name: string): string {
+  const trimmed = name.trim();
+  return MAIN_PUSH_NAME_ALIASES[trimmed.toUpperCase()] || trimmed;
+}
+
 // The live promoter roster. The store keeps this in sync so every report indexes
 // promoters the same way (reports used to assume the 3 default names and
 // crashed or dropped sales once the roster was customised).
@@ -912,12 +923,42 @@ export function calculateMainPushBreakdown(
           'LITO X1 SERIES': 15,
           'MINI 5 PRO SERIES': 9,
         };
+  const canonicalTargets = Object.entries(targetMap).reduce<Record<string, number>>(
+    (result, [name, target]) => {
+      const canonicalName = canonicalMainPushName(name);
+      if (!(canonicalName in result) || canonicalName === name) {
+        result[canonicalName] = target;
+      }
+      return result;
+    },
+    {}
+  );
+  const canonicalVariants = Object.entries(customVariants || {}).reduce<Record<string, string[]>>(
+    (result, [name, variants]) => {
+      const canonicalName = canonicalMainPushName(name);
+      if (!(canonicalName in result) || canonicalName === name) {
+        result[canonicalName] = variants;
+      }
+      return result;
+    },
+    {}
+  );
+  const canonicalDividers = Object.entries(customDividers || {}).reduce<Record<string, number>>(
+    (result, [name, divider]) => {
+      const canonicalName = canonicalMainPushName(name);
+      if (!(canonicalName in result) || canonicalName === name) {
+        result[canonicalName] = divider;
+      }
+      return result;
+    },
+    {}
+  );
 
   const defaultPromoterCount = Math.max(staffList.length, 1);
 
-  const categories: MainPushCategoryBreakdown[] = Object.entries(targetMap).map(
+  const categories: MainPushCategoryBreakdown[] = Object.entries(canonicalTargets).map(
     ([name, storeTarget]) => {
-      const personDivider = Math.max(1, (customDividers && customDividers[name]) ? customDividers[name] : defaultPromoterCount);
+      const personDivider = Math.max(1, canonicalDividers[name] || defaultPromoterCount);
       const targetPerPromoter = Math.round(storeTarget / personDivider);
       const promoters: PromoterModelTarget[] = staffList.map((stName, idx) => ({
         staffIndex: idx,
@@ -955,7 +996,7 @@ export function calculateMainPushBreakdown(
       }
 
       // Merge candidate variants with custom added subvariants
-      const selectedList = customVariants?.[name] ?? DEFAULT_MAIN_PUSH_VARIANTS[name];
+      const selectedList = canonicalVariants[name] ?? DEFAULT_MAIN_PUSH_VARIANTS[name];
       const variantLabels = new Set<string>();
       candidateVariants.forEach((v) => variantLabels.add(v.label));
       if (selectedList) {
@@ -1216,4 +1257,3 @@ export function getPromoterShortName(fullName: string): string {
   const firstWord = trimmed.split(/\s+/)[0];
   return firstWord || trimmed;
 }
-
