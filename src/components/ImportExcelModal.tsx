@@ -16,8 +16,12 @@ import {
   ArrowRight,
   RefreshCw,
   Trash2,
+  Sparkles,
+  Wrench,
+  Filter,
+  Edit2,
 } from 'lucide-react';
-import { SaleTuple, UnitTuple } from '../types';
+import { SaleTuple, UnitTuple, StockTuple } from '../types';
 import { DJI_DATA } from '../data/initialData';
 import {
   dateToDayOffset,
@@ -100,6 +104,9 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
   const [defaultDateISO, setDefaultDateISO] = useState<string>(formatISODate(todayOffset));
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [filterMode, setFilterMode] = useState<'all' | 'valid' | 'issues'>('all');
+  const [editingRow, setEditingRow] = useState<ParsedExcelSaleRow | null>(null);
+  const [fixMessage, setFixMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -130,6 +137,9 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
     setParsedRows([]);
     setParseError(null);
     setSearchQuery('');
+    setFilterMode('all');
+    setEditingRow(null);
+    setFixMessage(null);
   };
 
   // Helper to parse date from string or Excel serial number
@@ -527,26 +537,183 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
     onClose();
   };
 
+  // Auto-Fix all rows with errors/warnings
+  const handleAutoFixAll = () => {
+    let fixCount = 0;
+    const updated = parsedRows.map((r) => {
+      let isChanged = false;
+      let newDateOffset = r.dateOffset;
+      let newDateStr = r.dateStr;
+      let newStaffIndex = r.staffIndex;
+      let newStaffName = r.staffName;
+      let newProductName = r.productName;
+      let newSeriesName = r.seriesName;
+      let newSeriesIndex = r.seriesIndex;
+      let newPrice = r.price;
+      let newLeadType = r.leadType;
+      let newLeadTypeName = r.leadTypeName;
+      let newSn = (r.serialNumber || '').trim().toUpperCase();
+      let newEan = (r.ean || '').trim();
+
+      // 1. Fix missing or invalid date
+      if (!newDateStr || isNaN(newDateOffset) || newDateOffset < 0) {
+        newDateStr = defaultDateISO;
+        newDateOffset = dateToDayOffset(defaultDateISO);
+        isChanged = true;
+      }
+
+      // 2. Fix missing or unknown promoter
+      if (newStaffIndex < 0 || newStaffIndex >= staffList.length || !newStaffName) {
+        newStaffIndex = defaultStaff;
+        newStaffName = staffList[defaultStaff] || 'Christian';
+        isChanged = true;
+      }
+
+      // 3. Fix product name & series via SN or catalog
+      if (!newProductName || newProductName === 'DJI Product' || r.status === 'invalid' || r.status === 'warning') {
+        if (newSn && unitsMap.has(newSn)) {
+          const u = unitsMap.get(newSn)!;
+          newProductName = u[1];
+          newSeriesName = u[3];
+          if (!newPrice) newPrice = u[2];
+          if (!newEan && u[5]) newEan = u[5];
+          isChanged = true;
+        } else if (newEan) {
+          const u = DJI_DATA.units.find((unit) => unit[5] === newEan);
+          if (u) {
+            if (!newSn) newSn = u[0];
+            newProductName = u[1];
+            newSeriesName = u[3];
+            if (!newPrice) newPrice = u[2];
+            isChanged = true;
+          }
+        } else if (newProductName && newProductName !== 'DJI Product') {
+          const upper = newProductName.toUpperCase();
+          const direct = stockMap.get(upper);
+          if (direct) {
+            newSeriesName = direct.series;
+            if (!newPrice) newPrice = direct.price;
+            isChanged = true;
+          } else {
+            const matched = DJI_DATA.stock.find((s) => {
+              const sUpper = s[1].toUpperCase();
+              return upper.split(' ').filter((w) => w.length > 2).some((w) => sUpper.includes(w));
+            });
+            if (matched) {
+              newProductName = matched[1];
+              newSeriesName = matched[0];
+              if (!newPrice) newPrice = matched[2];
+              isChanged = true;
+            }
+          }
+        }
+      }
+
+      // 4. Fix missing price from official catalog
+      if (newPrice <= 0 && newProductName) {
+        const stockItem = stockMap.get(newProductName.toUpperCase());
+        if (stockItem && stockItem.price > 0) {
+          newPrice = stockItem.price;
+          isChanged = true;
+        }
+      }
+
+      // 5. Re-check series index
+      if (newSeriesName) {
+        const sIdx = DJI_DATA.ser.findIndex((s) => s.toLowerCase() === newSeriesName.toLowerCase());
+        newSeriesIndex = sIdx >= 0 ? sIdx : 0;
+      }
+
+      // 6. Fix lead type
+      if (newLeadType === undefined || newLeadType === null) {
+        newLeadType = 0;
+        newLeadTypeName = 'Walk-in';
+        isChanged = true;
+      }
+
+      const isValid = Boolean(newProductName && newProductName !== 'DJI Product' && newPrice > 0);
+      if (isChanged || r.status === 'invalid' || r.status === 'warning') {
+        fixCount++;
+      }
+
+      return {
+        ...r,
+        dateOffset: newDateOffset,
+        dateStr: newDateStr,
+        staffIndex: newStaffIndex,
+        staffName: newStaffName,
+        productName: newProductName,
+        seriesName: newSeriesName,
+        seriesIndex: newSeriesIndex,
+        price: newPrice,
+        leadType: newLeadType,
+        leadTypeName: newLeadTypeName,
+        serialNumber: newSn,
+        ean: newEan,
+        status: (isValid ? 'valid' : 'warning') as 'valid' | 'warning' | 'invalid',
+        statusNote: isValid
+          ? isChanged ? 'Auto-Fixed & Verified' : r.statusNote
+          : 'Please select a valid product with price > 0',
+      };
+    });
+
+    setParsedRows(updated);
+    setFixMessage(`Auto-repair applied! Reconciled and verified ${fixCount} data points across rows.`);
+    setTimeout(() => setFixMessage(null), 6000);
+  };
+
+  const handleSaveRowEdit = (updated: ParsedExcelSaleRow) => {
+    const isValid = Boolean(updated.productName && updated.productName !== 'DJI Product' && updated.price > 0);
+    const sIdx = DJI_DATA.ser.findIndex((s) => s.toLowerCase() === updated.seriesName.toLowerCase());
+    const finalRow: ParsedExcelSaleRow = {
+      ...updated,
+      seriesIndex: sIdx >= 0 ? sIdx : 0,
+      status: isValid ? 'valid' : 'invalid',
+      statusNote: isValid ? 'Manually Fixed & Verified' : 'Missing product or price',
+    };
+
+    setParsedRows((prev) =>
+      prev.map((r) => (r.rowNumber === updated.rowNumber ? finalRow : r))
+    );
+    setEditingRow(null);
+  };
+
+  const handleDeleteRow = (rowNumber: number) => {
+    setParsedRows((prev) => prev.filter((r) => r.rowNumber !== rowNumber));
+    if (editingRow?.rowNumber === rowNumber) {
+      setEditingRow(null);
+    }
+  };
+
   // Summary Metrics
-  const validCount = parsedRows.filter((r) => r.status !== 'invalid').length;
+  const validCount = parsedRows.filter((r) => r.status !== 'invalid' && r.price > 0).length;
+  const issuesCount = parsedRows.filter((r) => r.status === 'invalid' || r.status === 'warning' || r.price === 0).length;
   const totalRevenue = parsedRows
-    .filter((r) => r.status !== 'invalid')
+    .filter((r) => r.status !== 'invalid' && r.price > 0)
     .reduce((sum, r) => sum + r.price * r.units, 0);
 
-  // Filtered rows for preview search
+  // Filtered rows for preview search and issue filtering
   const filteredPreviewRows = useMemo(() => {
-    if (!searchQuery.trim()) return parsedRows;
+    let list = parsedRows;
+    if (filterMode === 'valid') {
+      list = list.filter((r) => r.status === 'valid' && r.price > 0);
+    } else if (filterMode === 'issues') {
+      list = list.filter((r) => r.status === 'invalid' || r.status === 'warning' || r.price === 0);
+    }
+
+    if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase().trim();
-    return parsedRows.filter(
+    return list.filter(
       (r) =>
         r.productName.toLowerCase().includes(q) ||
         r.serialNumber.toLowerCase().includes(q) ||
         (r.ean && r.ean.toLowerCase().includes(q)) ||
         r.staffName.toLowerCase().includes(q) ||
         r.seriesName.toLowerCase().includes(q) ||
-        (r.statusText && r.statusText.toLowerCase().includes(q))
+        (r.statusText && r.statusText.toLowerCase().includes(q)) ||
+        (r.statusNote && r.statusNote.toLowerCase().includes(q))
     );
-  }, [parsedRows, searchQuery]);
+  }, [parsedRows, filterMode, searchQuery]);
 
   if (!isOpen) return null;
 
@@ -916,20 +1083,102 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                 </div>
               </div>
 
-              {/* Search Preview */}
-              <div className="flex items-center justify-between gap-2">
+              {/* Fix Feedback Toast */}
+              {fixMessage && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 flex items-center justify-between text-xs animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-semibold">{fixMessage}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFixMessage(null)}
+                    className="text-emerald-700 hover:text-emerald-900 font-bold ml-2 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              {/* Data Issues & Auto-Repair Banner */}
+              {issuesCount > 0 && (
+                <div className="p-3.5 bg-amber-50/80 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in duration-150 shadow-2xs">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-amber-900 text-xs flex items-center gap-1.5">
+                        <span>Data Cleaning Required: {issuesCount} row(s) have missing or unverified fields</span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 mt-0.5">
+                        Inaccurate products, zero prices, or missing dates detected. Auto-repair matches them to the official DJI catalog, or you can edit individual rows.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleAutoFixAll}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-200 animate-pulse" />
+                      <span>Auto-Fix All ({issuesCount})</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Search, Filter Pills & Auto-Repair Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode('all')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                      filterMode === 'all'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    All ({parsedRows.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode('valid')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                      filterMode === 'valid'
+                        ? 'bg-white text-emerald-800 shadow-2xs'
+                        : 'text-emerald-700 hover:text-emerald-900'
+                    }`}
+                  >
+                    Ready ({validCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode('issues')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                      filterMode === 'issues'
+                        ? 'bg-white text-amber-900 shadow-2xs'
+                        : 'text-amber-700 hover:text-amber-900'
+                    }`}
+                  >
+                    <span>Needs Fix</span>
+                    {issuesCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black">
+                        {issuesCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
                 <div className="relative flex-1 max-w-sm">
                   <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search parsed preview (SN, product, staff)..."
+                    placeholder="Search preview (SN, product, staff)..."
                     className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
                   />
-                </div>
-                <div className="text-[11px] text-slate-500">
-                  Showing {filteredPreviewRows.length} of {parsedRows.length} rows
                 </div>
               </div>
 
@@ -948,20 +1197,23 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                       <th className="py-2.5 px-3 w-24">Date</th>
                       <th className="py-2.5 px-3 w-28">Promoter</th>
                       <th className="py-2.5 px-3 w-20">Lead Type</th>
-                      <th className="py-2.5 px-3 w-24 text-center">Validation</th>
+                      <th className="py-2.5 px-3 w-28 text-center">Validation</th>
+                      <th className="py-2.5 px-3 w-28 text-center sticky right-0 bg-slate-100 border-l border-slate-200 z-20">
+                        Action / Fix
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-sans">
                     {filteredPreviewRows.map((row) => (
                       <tr
                         key={row.rowNumber}
-                        className={
+                        className={`group transition-colors ${
                           row.status === 'invalid'
-                            ? 'bg-rose-50/50 text-rose-900'
-                            : row.status === 'warning'
+                            ? 'bg-rose-50/60 text-rose-900'
+                            : row.status === 'warning' || row.price === 0
                             ? 'bg-amber-50/40 text-slate-800'
                             : 'hover:bg-slate-50 text-slate-800'
-                        }
+                        }`}
                       >
                         <td className="py-2 px-3 text-center text-[10px] font-mono text-slate-400">
                           {row.rowNumber}
@@ -983,8 +1235,14 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                         <td className="py-2 px-3 font-medium">
                           <div className="font-bold text-slate-900">{row.productName}</div>
                         </td>
-                        <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700 whitespace-nowrap">
-                          {formatCurrency(row.price)}
+                        <td className="py-2 px-3 text-right font-mono font-bold whitespace-nowrap">
+                          {row.price > 0 ? (
+                            <span className="text-emerald-700">{formatCurrency(row.price)}</span>
+                          ) : (
+                            <span className="text-rose-600 font-bold bg-rose-100 px-1.5 py-0.5 rounded text-[11px]">
+                              ₱0 (Needs Price)
+                            </span>
+                          )}
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
                           <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-[10px] font-semibold border border-slate-200">
@@ -1010,7 +1268,7 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                         <td className="py-2 px-3 text-center whitespace-nowrap">
                           <span
                             className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              row.status === 'valid'
+                              row.status === 'valid' && row.price > 0
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 : row.status === 'warning'
                                 ? 'bg-amber-100 text-amber-800 border border-amber-200'
@@ -1018,8 +1276,29 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                             }`}
                             title={row.statusNote}
                           >
-                            {row.statusNote}
+                            {row.price === 0 && row.status === 'valid' ? 'Needs Price' : row.statusNote}
                           </span>
+                        </td>
+                        <td className="py-2 px-3 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 border-l border-slate-200 z-10">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditingRow(row)}
+                              className="px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Edit and fix this row"
+                            >
+                              <Wrench className="w-3 h-3 text-blue-600" />
+                              <span>Fix</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRow(row.rowNumber)}
+                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                              title="Discard this row"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1040,6 +1319,11 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                   {importMode}
                 </strong>{' '}
                 mode.
+                {issuesCount > 0 && (
+                  <span className="ml-1 text-amber-700 font-semibold">
+                    ({issuesCount} need fix)
+                  </span>
+                )}
               </span>
             ) : (
               <span>Upload an Excel file to preview and verify data.</span>
@@ -1070,6 +1354,379 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                   ? `Import & Override Current Data (${validCount})`
                   : `Import & Append (${validCount})`}
               </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Edit & Fix Single Row Sub-Modal */}
+        {editingRow && (
+          <FixSaleRowDialog
+            row={editingRow}
+            staffList={staffList}
+            onSave={handleSaveRowEdit}
+            onDelete={handleDeleteRow}
+            onClose={() => setEditingRow(null)}
+            allParsedRows={parsedRows}
+            onSelectNextIssue={(nextRow) => setEditingRow(nextRow)}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface FixSaleRowDialogProps {
+  row: ParsedExcelSaleRow;
+  staffList: string[];
+  onSave: (updated: ParsedExcelSaleRow) => void;
+  onDelete: (rowNumber: number) => void;
+  onClose: () => void;
+  allParsedRows: ParsedExcelSaleRow[];
+  onSelectNextIssue: (nextRow: ParsedExcelSaleRow) => void;
+}
+
+const FixSaleRowDialog: React.FC<FixSaleRowDialogProps> = ({
+  row,
+  staffList,
+  onSave,
+  onDelete,
+  onClose,
+  allParsedRows,
+  onSelectNextIssue,
+}) => {
+  const [productName, setProductName] = useState(row.productName);
+  const [price, setPrice] = useState(row.price);
+  const [seriesName, setSeriesName] = useState(row.seriesName);
+  const [serialNumber, setSerialNumber] = useState(row.serialNumber);
+  const [ean, setEan] = useState(row.ean || '');
+  const [dateStr, setDateStr] = useState(row.dateStr);
+  const [staffIndex, setStaffIndex] = useState(row.staffIndex);
+  const [leadType, setLeadType] = useState<0 | 1 | 2>(
+    (row.leadType === 3 ? 0 : row.leadType) as 0 | 1 | 2
+  );
+  const [catalogSearch, setCatalogSearch] = useState('');
+
+  // Find remaining issue rows excluding current
+  const otherIssues = useMemo(() => {
+    return allParsedRows.filter(
+      (r) => r.rowNumber !== row.rowNumber && (r.status === 'invalid' || r.status === 'warning' || r.price === 0)
+    );
+  }, [allParsedRows, row.rowNumber]);
+
+  // Catalog products filtered by search
+  const filteredCatalog = useMemo(() => {
+    if (!catalogSearch.trim()) return DJI_DATA.stock.slice(0, 15);
+    const q = catalogSearch.toLowerCase().trim();
+    return DJI_DATA.stock
+      .filter((s) => s[1].toLowerCase().includes(q) || s[0].toLowerCase().includes(q))
+      .slice(0, 20);
+  }, [catalogSearch]);
+
+  const handleSelectProduct = (catItem: StockTuple) => {
+    setProductName(catItem[1]);
+    setSeriesName(catItem[0]);
+    setPrice(catItem[2]);
+    setCatalogSearch('');
+  };
+
+  const handleApplyOfficialSrp = () => {
+    const match = DJI_DATA.stock.find((s) => s[1].toUpperCase() === productName.toUpperCase());
+    if (match) {
+      setPrice(match[2]);
+      setSeriesName(match[0]);
+    }
+  };
+
+  const handleSaveAndClose = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const updated: ParsedExcelSaleRow = {
+      ...row,
+      productName: productName.trim() || 'DJI Product',
+      price: Number(price) || 0,
+      seriesName: seriesName || 'GENERAL',
+      serialNumber: serialNumber.trim().toUpperCase(),
+      ean: ean.trim(),
+      dateStr,
+      dateOffset: dateToDayOffset(dateStr),
+      staffIndex,
+      staffName: staffList[staffIndex] || 'Christian',
+      leadType,
+      leadTypeName: leadType === 0 ? 'Walk-in' : leadType === 1 ? 'Revisit' : 'Online',
+    };
+    onSave(updated);
+  };
+
+  const handleSaveAndNext = () => {
+    const updated: ParsedExcelSaleRow = {
+      ...row,
+      productName: productName.trim() || 'DJI Product',
+      price: Number(price) || 0,
+      seriesName: seriesName || 'GENERAL',
+      serialNumber: serialNumber.trim().toUpperCase(),
+      ean: ean.trim(),
+      dateStr,
+      dateOffset: dateToDayOffset(dateStr),
+      staffIndex,
+      staffName: staffList[staffIndex] || 'Christian',
+      leadType,
+      leadTypeName: leadType === 0 ? 'Walk-in' : leadType === 1 ? 'Revisit' : 'Online',
+    };
+    onSave(updated);
+    if (otherIssues.length > 0) {
+      onSelectNextIssue(otherIssues[0]);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+              <Wrench className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm text-slate-900">
+                  Fix Data for Row #{row.rowNumber}
+                </h3>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    row.status === 'valid' && row.price > 0
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}
+                >
+                  {row.statusNote}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Verify and clean transaction parameters for clear & accurate records
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSaveAndClose} className="p-5 overflow-y-auto space-y-4 text-xs flex-1">
+          {/* Quick Product Matcher from Master Catalog */}
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span>Quick Master Catalog Picker</span>
+              </span>
+              <span className="text-[10px] text-slate-500">Auto-fills official SRP & series</span>
+            </div>
+            <div className="relative">
+              <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                placeholder="Search DJI Catalog (e.g., Action 5, Pocket 3, Neo, Mini 4 Pro, Mic 2)..."
+                className="w-full pl-7 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+              />
+            </div>
+            {filteredCatalog.length > 0 && (
+              <div className="max-h-28 overflow-y-auto divide-y divide-slate-100 bg-white border border-slate-200 rounded-lg text-[11px]">
+                {filteredCatalog.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectProduct(item)}
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-blue-50 flex items-center justify-between transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="font-bold text-slate-900">{item[1]}</div>
+                      <div className="text-[10px] text-slate-500">{item[0]}</div>
+                    </div>
+                    <span className="font-mono font-bold text-emerald-700 ml-2">
+                      {formatCurrency(item[2])}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Product Name & Series */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Product Name
+              </label>
+              <input
+                type="text"
+                required
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Category / Series
+              </label>
+              <select
+                value={seriesName}
+                onChange={(e) => setSeriesName(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 text-xs"
+              >
+                {DJI_DATA.ser.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Price & Official SRP Helper */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-bold text-slate-700">
+                  Unit Price (₱ SRP)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleApplyOfficialSrp}
+                  className="text-[10px] text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer"
+                >
+                  Lookup Catalog SRP
+                </button>
+              </div>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                required
+                value={price}
+                onChange={(e) => setPrice(Number(e.target.value))}
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900 text-sm focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Transaction Date
+              </label>
+              <input
+                type="date"
+                required
+                value={dateStr}
+                onChange={(e) => setDateStr(e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Serial Number & Barcode (EAN) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Serial Number (SN)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 1581F5GBA247A0001 (Optional for non-hardware)"
+                value={serialNumber}
+                onChange={(e) => setSerialNumber(e.target.value.toUpperCase())}
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono font-semibold text-slate-900 uppercase focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                EAN / Barcode
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 6941565972841"
+                value={ean}
+                onChange={(e) => setEan(e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-900 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Promoter & Lead Channel */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Sales Promoter
+              </label>
+              <select
+                value={staffIndex}
+                onChange={(e) => setStaffIndex(Number(e.target.value))}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900"
+              >
+                {staffList.map((st, i) => (
+                  <option key={st} value={i}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                Lead Source / Channel
+              </label>
+              <select
+                value={leadType}
+                onChange={(e) => setLeadType(Number(e.target.value) as 0 | 1 | 2)}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900"
+              >
+                <option value={0}>0 – Walk-in Guest</option>
+                <option value={1}>1 – Revisit Customer</option>
+                <option value={2}>2 – Online Inquiry</option>
+              </select>
+            </div>
+          </div>
+        </form>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => onDelete(row.rowNumber)}
+            className="px-3 py-1.5 text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg font-bold flex items-center gap-1 transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Discard Row</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            {otherIssues.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSaveAndNext}
+                className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg font-bold transition-colors cursor-pointer"
+              >
+                Save & Fix Next ({otherIssues.length})
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => handleSaveAndClose()}
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>Save & Validate</span>
             </button>
           </div>
         </div>

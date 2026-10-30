@@ -45,7 +45,7 @@ import {
   Layers,
   FileSpreadsheet,
 } from 'lucide-react';
-import { MAIN_PUSH_TARGETS, DJI_DATA } from '../data/initialData';
+import { DJI_DATA } from '../data/initialData';
 import { PeriodRange, SaleTuple, StockSeriesCover } from '../types';
 import {
   aggregateSales,

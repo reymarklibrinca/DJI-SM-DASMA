@@ -11,8 +11,11 @@ import {
   Trash2,
   Target,
   ArrowRight,
+  Sparkles,
+  Wrench,
 } from 'lucide-react';
 import { DEFAULT_MAIN_PUSH_TARGETS } from '../hooks/useDjiStore';
+import { canonicalMainPushName } from '../utils/calculations';
 
 interface ParsedTargetRow {
   modelName: string;
@@ -238,6 +241,42 @@ export const ImportMainPushTargetsModal: React.FC<ImportMainPushTargetsModalProp
     }, 1100);
   };
 
+  const handleAutoFixTargets = () => {
+    const updated: ParsedTargetRow[] = parsedRows.map((r) => {
+      const canon = canonicalMainPushName(r.modelName);
+      const defaultTarget = DEFAULT_MAIN_PUSH_TARGETS[canon] || (r.target > 0 ? r.target : 15);
+      const target = r.target > 0 ? r.target : defaultTarget;
+      return {
+        ...r,
+        modelName: canon,
+        target,
+        status: 'valid' as const,
+        statusNote: 'Auto-Fixed to Canonical Series',
+      };
+    });
+    setParsedRows(updated);
+    setSuccessMessage('Auto-fixed all targets to canonical series names!');
+    setTimeout(() => setSuccessMessage(null), 4000);
+  };
+
+  const handleUpdateRowTarget = (index: number, newModelName: string, newTarget: number) => {
+    const updated = [...parsedRows];
+    const isValidModel = newModelName.trim().length > 0;
+    const isValidTarget = !isNaN(newTarget) && newTarget >= 0;
+    updated[index] = {
+      ...updated[index],
+      modelName: newModelName.trim(),
+      target: newTarget,
+      status: isValidModel && isValidTarget ? 'valid' : 'invalid',
+      statusNote: !isValidModel ? 'Missing model name' : !isValidTarget ? 'Invalid target number' : undefined,
+    };
+    setParsedRows(updated);
+  };
+
+  const handleDeleteRow = (index: number) => {
+    setParsedRows((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const totalMonthlyTarget = useMemo(() => {
     return parsedRows
       .filter((r) => r.status === 'valid')
@@ -408,40 +447,85 @@ export const ImportMainPushTargetsModal: React.FC<ImportMainPushTargetsModalProp
                 </button>
               </div>
 
+              {/* Auto-Fix Targets Banner if Issues Exist */}
+              {parsedRows.some((r) => r.status === 'invalid') && (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 text-amber-900">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>
+                      <strong>{parsedRows.filter((r) => r.status === 'invalid').length} series</strong> need attention or use non-standard naming.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAutoFixTargets}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Auto-Fix All Targets</span>
+                  </button>
+                </div>
+              )}
+
               {/* Targets Preview Table */}
               <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
                 <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600">
                   <span>Detected Focus Models</span>
-                  <span>Target Units</span>
+                  <div className="flex items-center gap-6">
+                    <span>Target Units</span>
+                    <span className="w-12 text-center">Action</span>
+                  </div>
                 </div>
                 <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto">
                   {parsedRows.map((row, idx) => (
                     <div
                       key={idx}
-                      className={`px-3.5 py-2.5 flex items-center justify-between text-xs ${
+                      className={`px-3.5 py-2 flex items-center justify-between text-xs gap-3 ${
                         row.status === 'invalid' ? 'bg-rose-50/50' : 'hover:bg-slate-50'
                       }`}
                     >
-                      <div className="space-y-0.5">
-                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <div className="flex-1 space-y-0.5">
+                        <div className="flex items-center gap-2">
                           <Target className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                          <span>{row.modelName}</span>
+                          <input
+                            type="text"
+                            value={row.modelName}
+                            onChange={(e) => handleUpdateRowTarget(idx, e.target.value, row.target)}
+                            className="font-bold text-slate-900 bg-transparent hover:bg-white focus:bg-white border-b border-transparent hover:border-slate-300 focus:border-blue-500 px-1 py-0.5 rounded text-xs w-full max-w-xs"
+                          />
                           {row.status === 'invalid' && (
-                            <span className="text-[10px] px-1.5 py-0.2 bg-rose-100 text-rose-700 rounded font-semibold">
+                            <span className="text-[10px] px-1.5 py-0.2 bg-rose-100 text-rose-700 rounded font-semibold shrink-0">
                               {row.statusNote}
                             </span>
                           )}
                         </div>
                         {row.note && (
-                          <div className="text-[11px] text-slate-500">{row.note}</div>
+                          <div className="text-[11px] text-slate-500 pl-5">{row.note}</div>
                         )}
                       </div>
 
-                      <div className="text-right">
-                        <span className="text-sm font-black text-slate-900">
-                          {row.target}{' '}
-                          <span className="text-[11px] font-normal text-slate-500">units</span>
-                        </span>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="0"
+                            value={row.target}
+                            onChange={(e) =>
+                              handleUpdateRowTarget(idx, row.modelName, Math.max(0, parseInt(e.target.value) || 0))
+                            }
+                            className="w-16 px-2 py-1 bg-white border border-slate-300 rounded-lg text-right font-black text-slate-900 text-xs focus:ring-1 focus:ring-blue-500"
+                          />
+                          <span className="text-[11px] text-slate-500">units</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRow(idx)}
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Discard this model"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   ))}

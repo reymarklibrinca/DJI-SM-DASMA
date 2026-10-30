@@ -21,7 +21,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { SaleTuple } from '../types';
-import { DJI_DATA, MAIN_PUSH_TARGETS } from '../data/initialData';
+import { DJI_DATA } from '../data/initialData';
 import {
   calculateMainPushBreakdown,
   calculatePromoterMonthPerformance,

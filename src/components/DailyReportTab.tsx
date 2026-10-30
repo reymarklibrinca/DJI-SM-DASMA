@@ -13,7 +13,7 @@ import {
   ChevronRight,
   RotateCcw,
 } from 'lucide-react';
-import { DAYS_OF_WEEK, DJI_DATA, MAIN_PUSH_TARGETS, LEAD_TYPE_NAMES, ROUTINE_TASKS } from '../data/initialData';
+import { DAYS_OF_WEEK, DJI_DATA, LEAD_TYPE_NAMES, ROUTINE_TASKS } from '../data/initialData';
 import { SaleTuple } from '../types';
 import {
   aggregateSales,

@@ -13,13 +13,6 @@ export const DJI_DATA: DjiDataset = {
 };
 export * from './masterCatalog';
 
-export const MAIN_PUSH_TARGETS: [name: string, sold: number, target: number][] = [
-  ['MINI 5 PRO SERIES', 0, 9],
-  ['NEO 2 SERIES', 0, 18],
-  ['LITO X1 SERIES', 0, 15],
-  ['OSMO ACTION 6 SERIES', 0, 54],
-  ['OSMO POCKET 4 SERIES', 0, 45],
-];
 
 export const ROUTINE_TASKS: string[] = [
   'Opening inventory count and serial verification',
