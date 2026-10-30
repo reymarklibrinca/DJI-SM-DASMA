@@ -53,14 +53,6 @@ export const ACCESSORIES_INDEX = DJI_DATA.ser.findIndex(
   (s) => s === 'ACCESSORIES' || s.includes('ACCESSORIES')
 );
 
-const MAIN_PUSH_CANONICAL_NAMES: Record<string, string> = {
-  ACTION: 'OSMO ACTION 6 SERIES',
-  POCKET: 'OSMO POCKET 4 SERIES',
-  NEO: 'NEO 2 SERIES',
-  LITO: 'LITO X1 SERIES',
-  MINI: 'MINI 5 PRO SERIES',
-};
-
 const MAIN_PUSH_NAME_ALIASES: Record<string, string> = {
   'OA': 'OSMO ACTION 6 SERIES',
   'OA SERIES': 'OSMO ACTION 6 SERIES',
@@ -75,19 +67,21 @@ const MAIN_PUSH_NAME_ALIASES: Record<string, string> = {
   'POCKET 4 SERIES': 'OSMO POCKET 4 SERIES',
   'OSMO POCKET 4': 'OSMO POCKET 4 SERIES',
   'OSMO POCKET 4 SERIES': 'OSMO POCKET 4 SERIES',
-  'POCKET 4P': 'OSMO POCKET 4 SERIES',
-  'POCKET 4P SERIES': 'OSMO POCKET 4 SERIES',
-  'OSMO POCKET 4P': 'OSMO POCKET 4 SERIES',
-  'OSMO POCKET 4P SERIES': 'OSMO POCKET 4 SERIES',
+  'POCKET 4P': 'OSMO POCKET 4P SERIES',
+  'POCKET 4P SERIES': 'OSMO POCKET 4P SERIES',
+  'OSMO POCKET 4P': 'OSMO POCKET 4P SERIES',
+  'OSMO POCKET 4P SERIES': 'OSMO POCKET 4P SERIES',
 
-  'NEO': 'NEO 2 SERIES',
-  'NEO SERIES': 'NEO 2 SERIES',
+  'NEO': 'NEO SERIES',
+  'NEO SERIES': 'NEO SERIES',
   'NEO 2': 'NEO 2 SERIES',
   'NEO 2 SERIES': 'NEO 2 SERIES',
 
   'MINI 5 PRO': 'MINI 5 PRO SERIES',
   'MINI 5 PRO SERIES': 'MINI 5 PRO SERIES',
 
+  'LITO 1': 'LITO 1 SERIES',
+  'LITO 1 SERIES': 'LITO 1 SERIES',
   'LITO X1': 'LITO X1 SERIES',
   'LITO X1 SERIES': 'LITO X1 SERIES',
 
@@ -116,17 +110,7 @@ export function canonicalMainPushName(name: string): string {
   const upper = trimmed.toUpperCase();
   if (MAIN_PUSH_NAME_ALIASES[upper]) return MAIN_PUSH_NAME_ALIASES[upper];
 
-  // Fuzzy check based on normalized key
   const norm = normalizeSeriesKey(name);
-  if (norm === 'ACTION6' || norm === 'OA') return 'OSMO ACTION 6 SERIES';
-  if (norm === 'POCKET4' || norm === 'POCKET4P' || norm === 'POCKET') return 'OSMO POCKET 4 SERIES';
-  if (norm === 'NEO2' || norm === 'NEO') return 'NEO 2 SERIES';
-  if (norm === 'MINI5PRO' || norm === 'MINI5') return 'MINI 5 PRO SERIES';
-  if (norm === 'LITOX1' || norm === 'LITO1') return 'LITO X1 SERIES';
-  if (norm === 'AIR3S' || norm === 'AIR3') return 'AIR 3S SERIES';
-  if (norm === 'MAVIC4PRO' || norm === 'MAVIC4') return 'MAVIC 4 PRO SERIES';
-  if (norm === 'AVATA360') return 'AVATA 360 SERIES';
-
   return CANONICAL_SERIES_BY_KEY.get(norm) || trimmed;
 }
 
