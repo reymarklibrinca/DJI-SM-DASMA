@@ -18,6 +18,7 @@ import { SaleTuple } from '../types';
 import { DJI_DATA } from '../data/initialData';
 import {
   dayOffsetToDate,
+  canonicalMainPushName,
   isHardwareUnitItem,
   normalizeSeriesKey,
   normalizeProductKey,
@@ -372,60 +373,81 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
 
   // Initialize Series Configurations
   const [cfg, setCfg] = useState<SeriesConfigItem[]>(() => {
-    return SOURCE_DATA.series.map((s) => ({
-      u: s.unit,
-      n: s.name,
-      t: s.store_target,
-      m: s.target_mode === 'each' ? 'each' : 'total',
-      div: s.persons || N,
-      s: staff.map((st) => s.sold_per_person[st] ?? 0),
-      p: s.products.slice(),
-    }));
+    const byName = new Map<string, SeriesConfigItem>();
+    SOURCE_DATA.series.forEach((s) => {
+      const name = canonicalMainPushName(s.name);
+      const existing = byName.get(name);
+      byName.set(name, {
+        u: s.unit,
+        n: name,
+        t: existing ? Math.max(existing.t, s.store_target) : s.store_target,
+        m: s.target_mode === 'each' ? 'each' : 'total',
+        div: s.persons || N,
+        s: staff.map((st, i) =>
+          Math.max(existing?.s[i] || 0, s.sold_per_person[st] ?? 0)
+        ),
+        p: Array.from(new Set([...(existing?.p || []), ...s.products])),
+      });
+    });
+    return Array.from(byName.values());
   });
 
   // Keep cfg synced if external targets or variants change
   useEffect(() => {
     if (!mainPushTargets) return;
     setCfg((prev) => {
-      // Build updated list based on mainPushTargets
-      const next: SeriesConfigItem[] = [];
-      const usedNames = new Set<string>();
-
-      // Check items that exist in prev
+      const previousByName = new Map<string, SeriesConfigItem>();
       prev.forEach((item) => {
-        const customTarget = mainPushTargets[item.n];
-        if (customTarget !== undefined) {
-          usedNames.add(item.n);
-          const customVar = mainPushVariants?.[item.n];
-          const customDiv = mainPushDividers?.[item.n];
-          next.push({
-            ...item,
-            t: customTarget,
-            div: customDiv !== undefined ? customDiv : item.div,
-            p: customVar ? [...customVar] : item.p,
-          });
+        const name = canonicalMainPushName(item.n);
+        const existing = previousByName.get(name);
+        previousByName.set(name, {
+          ...item,
+          n: name,
+          t: existing ? Math.max(existing.t, item.t) : item.t,
+          s: staff.map((_, i) => Math.max(existing?.s[i] || 0, item.s[i] || 0)),
+          p: Array.from(new Set([...(existing?.p || []), ...item.p])),
+        });
+      });
+
+      const normalizedTargets = new Map<string, { name: string; target: number }>();
+      Object.entries(mainPushTargets).forEach(([rawName, target]) => {
+        const name = canonicalMainPushName(rawName);
+        const existing = normalizedTargets.get(name);
+        if (!existing || name === rawName) {
+          normalizedTargets.set(name, { name, target });
         }
       });
 
-      // Add any new targets from mainPushTargets not yet in prev
-      Object.entries(mainPushTargets).forEach(([name, target]) => {
-        if (!usedNames.has(name)) {
-          const catalogItem = MAIN_PUSH_CATALOG[name];
-          const unit = catalogItem ? catalogItem.u : 'Drone';
-          const defaultProducts =
-            mainPushVariants?.[name] || (catalogItem ? [...catalogItem.p] : []);
-          const divider = mainPushDividers?.[name] || N;
-          next.push({
-            u: unit,
+      const next: SeriesConfigItem[] = [];
+      normalizedTargets.forEach(({ name, target }) => {
+        const existing = previousByName.get(name);
+        const catalogItem = MAIN_PUSH_CATALOG[name];
+        const customVar =
+          mainPushVariants?.[name] ||
+          Object.entries(mainPushVariants || {}).find(
+            ([rawName]) => canonicalMainPushName(rawName) === name
+          )?.[1];
+        const customDiv =
+          mainPushDividers?.[name] ??
+          Object.entries(mainPushDividers || {}).find(
+            ([rawName]) => canonicalMainPushName(rawName) === name
+          )?.[1];
+        next.push({
+          ...(existing || {
+            u: catalogItem ? catalogItem.u : 'Drone',
             n: name,
             t: target,
-            m: 'total',
-            div: divider,
+            m: 'total' as const,
+            div: N,
             s: staff.map(() => 0),
-            p: defaultProducts,
+            p: catalogItem ? [...catalogItem.p] : [],
             c: !catalogItem,
-          });
-        }
+          }),
+          n: name,
+          t: target,
+          div: customDiv !== undefined ? customDiv : existing?.div || N,
+          p: customVar ? Array.from(new Set(customVar)) : existing?.p || [],
+        });
       });
 
       return next.length > 0 ? next : prev;
