@@ -54,15 +54,65 @@ export const ACCESSORIES_INDEX = DJI_DATA.ser.findIndex(
 );
 
 const MAIN_PUSH_NAME_ALIASES: Record<string, string> = {
+  'OA': 'OSMO ACTION 6 SERIES',
   'OA SERIES': 'OSMO ACTION 6 SERIES',
+  'ACTION 6': 'OSMO ACTION 6 SERIES',
+  'ACTION 6 SERIES': 'OSMO ACTION 6 SERIES',
+  'OSMO ACTION 6': 'OSMO ACTION 6 SERIES',
+  'OSMO ACTION 6 SERIES': 'OSMO ACTION 6 SERIES',
+
+  'POCKET': 'OSMO POCKET 4 SERIES',
+  'POCKET SERIES': 'OSMO POCKET 4 SERIES',
+  'POCKET 4': 'OSMO POCKET 4 SERIES',
   'POCKET 4 SERIES': 'OSMO POCKET 4 SERIES',
+  'OSMO POCKET 4': 'OSMO POCKET 4 SERIES',
+  'OSMO POCKET 4 SERIES': 'OSMO POCKET 4 SERIES',
+  'POCKET 4P': 'OSMO POCKET 4 SERIES',
+  'POCKET 4P SERIES': 'OSMO POCKET 4 SERIES',
+  'OSMO POCKET 4P': 'OSMO POCKET 4 SERIES',
+  'OSMO POCKET 4P SERIES': 'OSMO POCKET 4 SERIES',
+
+  'NEO': 'NEO 2 SERIES',
   'NEO SERIES': 'NEO 2 SERIES',
+  'NEO 2': 'NEO 2 SERIES',
+  'NEO 2 SERIES': 'NEO 2 SERIES',
+
+  'MINI 5 PRO': 'MINI 5 PRO SERIES',
+  'MINI 5 PRO SERIES': 'MINI 5 PRO SERIES',
+
+  'LITO X1': 'LITO X1 SERIES',
+  'LITO X1 SERIES': 'LITO X1 SERIES',
+
+  'AIR 3S': 'AIR 3S SERIES',
+  'AIR 3S SERIES': 'AIR 3S SERIES',
+
+  'MAVIC 4 PRO': 'MAVIC 4 PRO SERIES',
+  'MAVIC 4 PRO SERIES': 'MAVIC 4 PRO SERIES',
+
+  'AVATA 360': 'AVATA 360 SERIES',
+  'AVATA 360 SERIES': 'AVATA 360 SERIES',
 };
 
 export function canonicalMainPushName(name: string): string {
+  if (!name) return '';
   const trimmed = name.trim();
-  return MAIN_PUSH_NAME_ALIASES[trimmed.toUpperCase()] || trimmed;
+  const upper = trimmed.toUpperCase();
+  if (MAIN_PUSH_NAME_ALIASES[upper]) return MAIN_PUSH_NAME_ALIASES[upper];
+
+  // Fuzzy check based on normalized key
+  const norm = normalizeSeriesKey(name);
+  if (norm === 'ACTION6' || norm === 'OA') return 'OSMO ACTION 6 SERIES';
+  if (norm === 'POCKET4' || norm === 'POCKET4P' || norm === 'POCKET') return 'OSMO POCKET 4 SERIES';
+  if (norm === 'NEO2' || norm === 'NEO') return 'NEO 2 SERIES';
+  if (norm === 'MINI5PRO' || norm === 'MINI5') return 'MINI 5 PRO SERIES';
+  if (norm === 'LITOX1' || norm === 'LITO1') return 'LITO X1 SERIES';
+  if (norm === 'AIR3S' || norm === 'AIR3') return 'AIR 3S SERIES';
+  if (norm === 'MAVIC4PRO' || norm === 'MAVIC4') return 'MAVIC 4 PRO SERIES';
+  if (norm === 'AVATA360') return 'AVATA 360 SERIES';
+
+  return trimmed;
 }
+
 
 // The live promoter roster. The store keeps this in sync so every report indexes
 // promoters the same way (reports used to assume the 3 default names and
@@ -684,44 +734,6 @@ export const KNOWN_SERIES_VARIANTS: Record<string, SeriesVariantInfo[]> = {
     { label: 'DJI Avata 360 Fly More Combo (DJI RC 2)', rawSerName: 'AVATA 360 SERIES' },
     { label: 'DJI Avata 360 Motion Fly More Combo (DJI Goggles N3)', rawSerName: 'AVATA 360 SERIES' },
   ],
-  'OA Series': [
-    { label: 'Osmo Action 6 Adventure Combo', rawSerName: 'OSMO ACTION 6 SERIES' },
-    { label: 'Osmo Action 6 Street Photography Gift Set', rawSerName: 'OSMO ACTION 6 SERIES' },
-    { label: 'Osmo Action 6 Standard Combo', rawSerName: 'OSMO ACTION 6 SERIES' },
-    { label: 'Osmo Action 5 PRO Adventure Combo', rawSerName: 'OSMO ACTION 5 PRO SERIES' },
-    { label: 'Osmo Action 5 PRO Standard Combo', rawSerName: 'OSMO ACTION 5 PRO SERIES' },
-    { label: 'Osmo Action 4 Adventure Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
-    { label: 'Osmo Action 4 Standard Combo', rawSerName: 'OSMO ACTION 4 SERIES' },
-  ],
-  'Pocket Series': [
-    { label: 'Osmo Pocket 4 Creator Combo', rawSerName: 'OSMO POCKET 4 SERIES' },
-    { label: 'Osmo Pocket 4 Standard Combo', rawSerName: 'OSMO POCKET 4 SERIES' },
-    { label: 'Osmo Pocket 4P Vlog Combo', rawSerName: 'OSMO POCKET 4P SERIES' },
-    { label: 'Osmo Pocket 4P Standard Combo', rawSerName: 'OSMO POCKET 4P SERIES' },
-    { label: 'Osmo Pocket 4P Standard Combo (Pearl White)', rawSerName: 'OSMO POCKET 4P SERIES' },
-    { label: 'Osmo Pocket 3 Creator Combo', rawSerName: 'OSMO POCKET 3 SERIES' },
-    { label: 'Osmo Pocket 3', rawSerName: 'OSMO POCKET 3 SERIES' },
-  ],
-  'NEO Series': [
-    { label: 'DJI NEO 2 MOTION FLY MORE COMBO', rawSerName: 'NEO 2 SERIES' },
-    { label: 'DJI NEO 2 FLY MORE COMBO', rawSerName: 'NEO 2 SERIES' },
-    { label: 'DJI Neo 2 Fly More Combo (Drone Only)', rawSerName: 'NEO 2 SERIES' },
-    { label: 'DJI NEO 2', rawSerName: 'NEO 2 SERIES' },
-  ],
-  'Mini 5 Pro': [
-    { label: 'DJI Mini 5 Pro Fly More Combo Plus (DJI RC2)', rawSerName: 'MINI 5 PRO SERIES' },
-    { label: 'DJI Mini 5 Pro Fly More Combo (DJI RC2)', rawSerName: 'MINI 5 PRO SERIES' },
-    { label: 'DJI Mini 5 Pro Fly More Combo (DJI RC-N3)', rawSerName: 'MINI 5 PRO SERIES' },
-    { label: 'DJI Mini 5 Pro', rawSerName: 'MINI 5 PRO SERIES' },
-  ],
-  'Lito X1': [
-    { label: 'DJI Lito X1 Fly More Combo Plus (DJI RC 2)', rawSerName: 'LITO X1 SERIES' },
-    { label: 'DJI Lito X1 Fly More Combo (DJI RC 2)', rawSerName: 'LITO X1 SERIES' },
-    { label: 'DJI Lito X1 Fly More Combo (DJI RC-N3)', rawSerName: 'LITO X1 SERIES' },
-    { label: 'DJI Lito X1', rawSerName: 'LITO X1 SERIES' },
-    { label: 'DJI Lito 1 Fly More Combo (DJI RC-N3)', rawSerName: 'LITO 1 SERIES' },
-    { label: 'DJI Lito 1', rawSerName: 'LITO 1 SERIES' },
-  ],
 };
 
 export const DEFAULT_MAIN_PUSH_VARIANTS: Record<string, string[]> = {
@@ -777,35 +789,6 @@ export const DEFAULT_MAIN_PUSH_VARIANTS: Record<string, string[]> = {
     'DJI Avata 360 (DJI RC 2)',
     'DJI Avata 360 Fly More Combo (DJI RC 2)',
     'DJI Avata 360 Motion Fly More Combo (DJI Goggles N3)',
-  ],
-  'OA Series': [
-    'Osmo Action 6 Adventure Combo',
-    'Osmo Action 6 Street Photography Gift Set',
-    'Osmo Action 6 Standard Combo',
-  ],
-  'Pocket Series': [
-    'Osmo Pocket 4 Creator Combo',
-    'Osmo Pocket 4 Standard Combo',
-    'Osmo Pocket 4P Vlog Combo',
-    'Osmo Pocket 4P Standard Combo',
-  ],
-  'NEO Series': [
-    'DJI NEO 2 MOTION FLY MORE COMBO',
-    'DJI NEO 2 FLY MORE COMBO',
-    'DJI Neo 2 Fly More Combo (Drone Only)',
-    'DJI NEO 2',
-  ],
-  'Mini 5 Pro': [
-    'DJI Mini 5 Pro Fly More Combo Plus (DJI RC2)',
-    'DJI Mini 5 Pro Fly More Combo (DJI RC2)',
-    'DJI Mini 5 Pro Fly More Combo (DJI RC-N3)',
-    'DJI Mini 5 Pro',
-  ],
-  'Lito X1': [
-    'DJI Lito X1 Fly More Combo Plus (DJI RC 2)',
-    'DJI Lito X1 Fly More Combo (DJI RC 2)',
-    'DJI Lito X1 Fly More Combo (DJI RC-N3)',
-    'DJI Lito X1',
   ],
 };
 
@@ -923,36 +906,42 @@ export function calculateMainPushBreakdown(
           'LITO X1 SERIES': 15,
           'MINI 5 PRO SERIES': 9,
         };
-  const canonicalTargets = Object.entries(targetMap).reduce<Record<string, number>>(
-    (result, [name, target]) => {
-      const canonicalName = canonicalMainPushName(name);
-      if (!(canonicalName in result) || canonicalName === name) {
-        result[canonicalName] = target;
-      }
-      return result;
-    },
-    {}
-  );
-  const canonicalVariants = Object.entries(customVariants || {}).reduce<Record<string, string[]>>(
-    (result, [name, variants]) => {
-      const canonicalName = canonicalMainPushName(name);
-      if (!(canonicalName in result) || canonicalName === name) {
-        result[canonicalName] = variants;
-      }
-      return result;
-    },
-    {}
-  );
-  const canonicalDividers = Object.entries(customDividers || {}).reduce<Record<string, number>>(
-    (result, [name, divider]) => {
-      const canonicalName = canonicalMainPushName(name);
-      if (!(canonicalName in result) || canonicalName === name) {
-        result[canonicalName] = divider;
-      }
-      return result;
-    },
-    {}
-  );
+  const canonicalTargets: Record<string, number> = {};
+  const seenSeriesKeys = new Map<string, string>();
+
+  Object.entries(targetMap).forEach(([name, target]) => {
+    const canonName = canonicalMainPushName(name);
+    const normKey = normalizeSeriesKey(canonName);
+    const existingName = seenSeriesKeys.get(normKey);
+    if (!existingName) {
+      seenSeriesKeys.set(normKey, canonName);
+      canonicalTargets[canonName] = target;
+    } else {
+      canonicalTargets[existingName] = Math.max(canonicalTargets[existingName], target);
+    }
+  });
+
+  const canonicalVariants: Record<string, string[]> = {};
+  Object.entries(customVariants || {}).forEach(([name, variants]) => {
+    const canonName = canonicalMainPushName(name);
+    const normKey = normalizeSeriesKey(canonName);
+    const targetName = seenSeriesKeys.get(normKey) || canonName;
+    if (canonicalVariants[targetName]) {
+      canonicalVariants[targetName] = Array.from(new Set([...canonicalVariants[targetName], ...variants]));
+    } else {
+      canonicalVariants[targetName] = Array.from(new Set(variants));
+    }
+  });
+
+  const canonicalDividers: Record<string, number> = {};
+  Object.entries(customDividers || {}).forEach(([name, divider]) => {
+    const canonName = canonicalMainPushName(name);
+    const normKey = normalizeSeriesKey(canonName);
+    const targetName = seenSeriesKeys.get(normKey) || canonName;
+    if (!(targetName in canonicalDividers)) {
+      canonicalDividers[targetName] = divider;
+    }
+  });
 
   const defaultPromoterCount = Math.max(staffList.length, 1);
 

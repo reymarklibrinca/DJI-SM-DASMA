@@ -61,6 +61,7 @@ import { MainPushBreakdownModal } from './MainPushBreakdownModal';
 import { ImportMainPushTargetsModal } from './ImportMainPushTargetsModal';
 import { EditMainPushTargetsModal } from './EditMainPushTargetsModal';
 import { MainPushCard } from './MainPushCard';
+import { SalesTrends7DaysChart } from './dashboard/SalesTrends7DaysChart';
 
 import { SwipeableCard } from './dashboard/SwipeableCard';
 import { DEFAULT_INVENTORY_ITEMS, DEFAULT_DASMARINAS_WEATHER } from './dashboard/dashboardData';
@@ -78,6 +79,7 @@ interface DashboardTabProps {
     totalSrpValue: number;
   };
   endOffset: number;
+  dailyGoal?: number;
   localLeads: Record<number, Record<string, [number, number, number]>>;
   staffList: string[];
   promoterMonthlyTargets?: Record<number, number>;
@@ -103,6 +105,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   periodRange,
   stockMetrics,
   endOffset,
+  dailyGoal = 232258,
   localLeads,
   staffList,
   promoterMonthlyTargets = { 0: 2400000, 1: 2400000, 2: 2400000 },
@@ -564,6 +567,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 7-Day Sales Trends Chart (Recharts) */}
+      <SalesTrends7DaysChart
+        sales={sales}
+        endOffset={endOffset}
+        dailyGoal={dailyGoal}
+        staffList={staffList}
+      />
 
       {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

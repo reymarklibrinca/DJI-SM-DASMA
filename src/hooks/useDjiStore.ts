@@ -16,7 +16,11 @@ import {
   aggregateSales,
   calculateStockMetrics,
   calculatePercentChange,
-  DEFAULT_MAIN_PUSH_VARIANTS, setActiveStaff } from '../utils/calculations';
+  DEFAULT_MAIN_PUSH_VARIANTS,
+  setActiveStaff,
+  canonicalMainPushName,
+  normalizeSeriesKey,
+} from '../utils/calculations';
 
 const STORAGE_KEY = 'oh2';
 
@@ -27,6 +31,56 @@ export const DEFAULT_MAIN_PUSH_TARGETS: Record<string, number> = {
   'LITO X1 SERIES': 15,
   'MINI 5 PRO SERIES': 9,
 };
+
+export function cleanDeduplicatedTargets(targets?: Record<string, number>): Record<string, number> {
+  if (!targets) return DEFAULT_MAIN_PUSH_TARGETS;
+  const cleaned: Record<string, number> = {};
+  const seen = new Map<string, string>();
+  Object.entries(targets).forEach(([rawName, target]) => {
+    const canon = canonicalMainPushName(rawName);
+    const key = normalizeSeriesKey(canon);
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, canon);
+      cleaned[canon] = target;
+    } else {
+      cleaned[existing] = Math.max(cleaned[existing], target);
+    }
+  });
+  return Object.keys(cleaned).length > 0 ? cleaned : DEFAULT_MAIN_PUSH_TARGETS;
+}
+
+export function cleanDeduplicatedVariants(variants?: Record<string, string[]>): Record<string, string[]> {
+  if (!variants) return DEFAULT_MAIN_PUSH_VARIANTS;
+  const cleaned: Record<string, string[]> = {};
+  const seen = new Map<string, string>();
+  Object.entries(variants).forEach(([rawName, list]) => {
+    const canon = canonicalMainPushName(rawName);
+    const key = normalizeSeriesKey(canon);
+    const targetName = seen.get(key) || canon;
+    if (!seen.has(key)) {
+      seen.set(key, canon);
+    }
+    const existing = cleaned[targetName] || [];
+    cleaned[targetName] = Array.from(new Set([...existing, ...(Array.isArray(list) ? list : [])]));
+  });
+  return cleaned;
+}
+
+export function cleanDeduplicatedDividers(dividers?: Record<string, number>): Record<string, number> {
+  if (!dividers) return { 'OSMO ACTION 6 SERIES': 3, 'OSMO POCKET 4 SERIES': 3, 'NEO 2 SERIES': 3, 'LITO X1 SERIES': 3, 'MINI 5 PRO SERIES': 3 };
+  const cleaned: Record<string, number> = {};
+  const seen = new Map<string, string>();
+  Object.entries(dividers).forEach(([rawName, div]) => {
+    const canon = canonicalMainPushName(rawName);
+    const key = normalizeSeriesKey(canon);
+    if (!seen.has(key)) {
+      seen.set(key, canon);
+      cleaned[canon] = Math.max(1, Math.round(div));
+    }
+  });
+  return cleaned;
+}
 
 const defaultLocalState: LocalStorageState = {
   sales: [],
@@ -57,9 +111,9 @@ export function useDjiStore() {
           leads: parsed.leads || {},
           final: parsed.final || {},
           pm: parsed.pm || defaultLocalState.pm,
-          mainPushTargets: parsed.mainPushTargets !== undefined ? parsed.mainPushTargets : DEFAULT_MAIN_PUSH_TARGETS,
-          mainPushVariants: parsed.mainPushVariants !== undefined ? parsed.mainPushVariants : DEFAULT_MAIN_PUSH_VARIANTS,
-          mainPushDividers: parsed.mainPushDividers || {},
+          mainPushTargets: cleanDeduplicatedTargets(parsed.mainPushTargets),
+          mainPushVariants: cleanDeduplicatedVariants(parsed.mainPushVariants),
+          mainPushDividers: cleanDeduplicatedDividers(parsed.mainPushDividers),
           inventoryUnits: Array.isArray(parsed.inventoryUnits) ? parsed.inventoryUnits : undefined,
           hasCustomInventory: typeof parsed.hasCustomInventory === 'boolean' ? parsed.hasCustomInventory : false,
           staff: Array.isArray(parsed.staff) && parsed.staff.length > 0 ? parsed.staff : DEFAULT_STAFF,
@@ -981,15 +1035,32 @@ export function useDjiStore() {
   const deleteMainPushTarget = useCallback(
     (modelName: string) => {
       recordMutation();
+      const targetCanon = canonicalMainPushName(modelName);
+      const targetKey = normalizeSeriesKey(targetCanon);
       setLocalData((prev) => {
-        const nextTargets = { ...(prev.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS) };
-        delete nextTargets[modelName];
-        const nextVariants = { ...(prev.mainPushVariants || DEFAULT_MAIN_PUSH_VARIANTS) };
-        delete nextVariants[modelName];
+        const nextTargets: Record<string, number> = {};
+        Object.entries(prev.mainPushTargets || DEFAULT_MAIN_PUSH_TARGETS).forEach(([k, v]) => {
+          if (normalizeSeriesKey(canonicalMainPushName(k)) !== targetKey) {
+            nextTargets[k] = v;
+          }
+        });
+        const nextVariants: Record<string, string[]> = {};
+        Object.entries(prev.mainPushVariants || DEFAULT_MAIN_PUSH_VARIANTS).forEach(([k, v]) => {
+          if (normalizeSeriesKey(canonicalMainPushName(k)) !== targetKey) {
+            nextVariants[k] = v;
+          }
+        });
+        const nextDividers: Record<string, number> = {};
+        Object.entries(prev.mainPushDividers || {}).forEach(([k, v]) => {
+          if (normalizeSeriesKey(canonicalMainPushName(k)) !== targetKey) {
+            nextDividers[k] = v;
+          }
+        });
         const updated = {
           ...prev,
-          mainPushTargets: nextTargets,
-          mainPushVariants: nextVariants,
+          mainPushTargets: cleanDeduplicatedTargets(nextTargets),
+          mainPushVariants: cleanDeduplicatedVariants(nextVariants),
+          mainPushDividers: cleanDeduplicatedDividers(nextDividers),
         };
         saveToStorage(updated);
         return updated;
@@ -1005,10 +1076,10 @@ export function useDjiStore() {
       setLocalData((prev) => {
         const updated = {
           ...prev,
-          mainPushVariants: {
+          mainPushVariants: cleanDeduplicatedVariants({
             ...(prev.mainPushVariants || DEFAULT_MAIN_PUSH_VARIANTS),
             [seriesName]: selectedVariants,
-          },
+          }),
         };
         saveToStorage(updated);
         return updated;
@@ -1026,13 +1097,14 @@ export function useDjiStore() {
     ) => {
       recordMutation();
       setLocalData((prev) => {
+        const cleanedTargets = cleanDeduplicatedTargets(newTargets);
+        const cleanedVariants = newVariants ? cleanDeduplicatedVariants(newVariants) : prev.mainPushVariants;
+        const cleanedDividers = newDividers !== undefined ? cleanDeduplicatedDividers(newDividers) : prev.mainPushDividers;
         const updated = {
           ...prev,
-          mainPushTargets: {
-            ...newTargets,
-          },
-          ...(newVariants ? { mainPushVariants: { ...newVariants } } : {}),
-          ...(newDividers !== undefined ? { mainPushDividers: { ...newDividers } } : {}),
+          mainPushTargets: cleanedTargets,
+          ...(cleanedVariants ? { mainPushVariants: cleanedVariants } : {}),
+          ...(cleanedDividers !== undefined ? { mainPushDividers: cleanedDividers } : {}),
         };
         saveToStorage(updated);
         return updated;

@@ -1,5 +1,10 @@
 import { LocalStorageState, SaleTuple, UnitTuple } from '../types';
-import { DEFAULT_MAIN_PUSH_VARIANTS } from './calculations';
+import {
+  DEFAULT_MAIN_PUSH_VARIANTS,
+  canonicalMainPushName,
+  normalizeSeriesKey,
+} from './calculations';
+
 
 /**
  * Generate a deterministic unique key for a sale tuple to deduplicate across
@@ -147,16 +152,22 @@ export function reconcileMainPushDividers(
   remoteDividers: Record<string, number> = {},
   preferLocal: boolean = true
 ): Record<string, number> {
-  if (preferLocal) {
-    return {
-      ...(remoteDividers || {}),
-      ...(localDividers || {}),
-    };
-  }
-  return {
-    ...(localDividers || {}),
-    ...(remoteDividers || {}),
-  };
+  const merged: Record<string, number> = {};
+  const seen = new Map<string, string>();
+  const base = preferLocal
+    ? { ...(remoteDividers || {}), ...(localDividers || {}) }
+    : { ...(localDividers || {}), ...(remoteDividers || {}) };
+
+  Object.entries(base).forEach(([rawName, div]) => {
+    const canon = canonicalMainPushName(rawName);
+    const key = normalizeSeriesKey(canon);
+    if (!seen.has(key)) {
+      seen.set(key, canon);
+      merged[canon] = div;
+    }
+  });
+
+  return merged;
 }
 
 export function reconcileMainPushTargets(
@@ -164,47 +175,67 @@ export function reconcileMainPushTargets(
   remoteTargets: Record<string, number> = {},
   preferLocal: boolean = true
 ): Record<string, number> {
-  if (preferLocal) {
-    return {
-      ...(remoteTargets || {}),
-      ...(localTargets || {}),
-    };
-  }
-  return {
-    ...(localTargets || {}),
-    ...(remoteTargets || {}),
-  };
+  const merged: Record<string, number> = {};
+  const seen = new Map<string, string>();
+  const base = preferLocal
+    ? { ...(remoteTargets || {}), ...(localTargets || {}) }
+    : { ...(localTargets || {}), ...(remoteTargets || {}) };
+
+  Object.entries(base).forEach(([rawName, target]) => {
+    const canon = canonicalMainPushName(rawName);
+    const key = normalizeSeriesKey(canon);
+    const existingName = seen.get(key);
+    if (!existingName) {
+      seen.set(key, canon);
+      merged[canon] = target;
+    } else {
+      merged[existingName] = Math.max(merged[existingName], target);
+    }
+  });
+
+  return merged;
 }
 
 /**
  * Reconciles Main Push Variants:
- * Unions all subvariants so newly added subvariants are NEVER lost on sync.
+ * Unions all subvariants so newly added subvariants are NEVER lost on sync,
+ * while preventing duplicate entries for the same series.
  */
 export function reconcileMainPushVariants(
   localVariants: Record<string, string[]> = {},
   remoteVariants: Record<string, string[]> = {}
 ): Record<string, string[]> {
   const merged: Record<string, string[]> = {};
-  const allSeries = new Set([
+  const seen = new Map<string, string>();
+
+  const allRawSeries = new Set([
     ...Object.keys(DEFAULT_MAIN_PUSH_VARIANTS),
     ...Object.keys(remoteVariants || {}),
     ...Object.keys(localVariants || {}),
   ]);
 
-  for (const series of allSeries) {
-    const defaultList = DEFAULT_MAIN_PUSH_VARIANTS[series] || [];
-    const remoteList = remoteVariants?.[series] || [];
-    const localList = localVariants?.[series] || [];
+  for (const rawName of allRawSeries) {
+    const canon = canonicalMainPushName(rawName);
+    const key = normalizeSeriesKey(canon);
+    const targetName = seen.get(key) || canon;
+    if (!seen.has(key)) {
+      seen.set(key, canon);
+    }
 
-    // Combine uniquely while maintaining order
-    const combined = Array.from(new Set([...defaultList, ...remoteList, ...localList]));
+    const defaultList = DEFAULT_MAIN_PUSH_VARIANTS[canon] || DEFAULT_MAIN_PUSH_VARIANTS[rawName] || [];
+    const remoteList = remoteVariants?.[rawName] || remoteVariants?.[canon] || [];
+    const localList = localVariants?.[rawName] || localVariants?.[canon] || [];
+    const existing = merged[targetName] || [];
+
+    const combined = Array.from(new Set([...existing, ...defaultList, ...remoteList, ...localList]));
     if (combined.length > 0) {
-      merged[series] = combined;
+      merged[targetName] = combined;
     }
   }
 
   return merged;
 }
+
 
 /**
  * Reconciles inventory units without dropping locally imported/added items.

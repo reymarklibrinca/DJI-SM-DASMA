@@ -28,6 +28,8 @@ import {
   isHardwareUnitItem,
   formatCurrency,
   isSeriesStrictMatch,
+  canonicalMainPushName,
+  normalizeSeriesKey,
 } from '../utils/calculations';
 import { DJI_DATA, MASTER_SERIES_LIST, MASTER_PRODUCTS } from '../data/initialData';
 
@@ -142,27 +144,48 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
   // whatever targets or subvariants the user is actively typing!
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
-      setDraftTargets({ ...currentTargets });
-      setDraftDividers({ ...currentDividers });
+      const cleanTargets: Record<string, number> = {};
+      const cleanDividers: Record<string, number> = {};
+      const cleanVariants: Record<string, string[]> = {};
+      const seen = new Map<string, string>();
+
+      Object.entries(currentTargets).forEach(([rawName, target]) => {
+        const canonName = canonicalMainPushName(rawName);
+        const normKey = normalizeSeriesKey(canonName);
+        const existingName = seen.get(normKey);
+        if (!existingName) {
+          seen.set(normKey, canonName);
+          cleanTargets[canonName] = target;
+          cleanDividers[canonName] = currentDividers[rawName] ?? currentDividers[canonName] ?? 3;
+        } else {
+          cleanTargets[existingName] = Math.max(cleanTargets[existingName], target);
+        }
+      });
+
+      setDraftTargets(cleanTargets);
+      setDraftDividers(cleanDividers);
       setErrorMessage(null);
       setSearchQueries({});
       setNewSubvariantInputs({});
 
-      const initialVariants: Record<string, string[]> = {};
       const initialCatalogs: Record<string, boolean> = {};
       const initialSeriesMap: Record<string, boolean> = {};
 
-      Object.keys(currentTargets).forEach((series) => {
+      Object.keys(cleanTargets).forEach((series) => {
         initialCatalogs[series] = false;
 
         // Pre-select variants based on currentVariants, or defaults, or known variants
-        if (currentVariants[series] && Array.isArray(currentVariants[series])) {
-          initialVariants[series] = [...currentVariants[series]];
+        const rawMatch = currentVariants[series] || Object.entries(currentVariants).find(
+          ([k]) => normalizeSeriesKey(canonicalMainPushName(k)) === normalizeSeriesKey(series)
+        )?.[1];
+
+        if (rawMatch && Array.isArray(rawMatch)) {
+          cleanVariants[series] = Array.from(new Set(rawMatch));
         } else if (DEFAULT_MAIN_PUSH_VARIANTS[series]) {
-          initialVariants[series] = [...DEFAULT_MAIN_PUSH_VARIANTS[series]];
+          cleanVariants[series] = [...DEFAULT_MAIN_PUSH_VARIANTS[series]];
         } else {
           const stockUnits = getStockSubvariantsForTarget(series);
-          initialVariants[series] = stockUnits.map((s) => s.productName);
+          cleanVariants[series] = stockUnits.map((s) => s.productName);
         }
 
         // Open the matching series for each group
@@ -185,7 +208,7 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
         });
       });
 
-      setDraftVariants(initialVariants);
+      setDraftVariants(cleanVariants);
       setOpenCatalogs(initialCatalogs);
       setOpenSeriesMap(initialSeriesMap);
       setIsAddingNew(false);
@@ -349,15 +372,17 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
   // ADD NEW TARGET GROUP FOLLOWING THE MASTER SERIES
   const handleAddNewGroup = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalSeriesName =
+    const rawFinalSeriesName =
       selectedMasterSeries === '__CUSTOM__'
         ? customSeriesInput.trim()
         : (selectedMasterSeries || customSeriesInput).trim();
 
-    if (!finalSeriesName) {
+    if (!rawFinalSeriesName) {
       setErrorMessage('Please select a Master Series or enter a custom target name.');
       return;
     }
+
+    const finalSeriesName = canonicalMainPushName(rawFinalSeriesName);
 
     if (!isHardwareUnitItem(finalSeriesName)) {
       setErrorMessage(
@@ -366,13 +391,18 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
       return;
     }
 
-    if (draftTargets[finalSeriesName] !== undefined) {
-      setErrorMessage(`Target group "${finalSeriesName}" already exists in the list.`);
+    const normKey = normalizeSeriesKey(finalSeriesName);
+    const existingEntry = Object.keys(draftTargets).find(
+      (k) => normalizeSeriesKey(canonicalMainPushName(k)) === normKey
+    );
+    if (existingEntry) {
+      setErrorMessage(`Target group "${existingEntry}" already exists in the list.`);
       return;
     }
 
     setErrorMessage(null);
     const initialTarget = Math.max(1, Number(newModelTarget) || 1);
+
 
     // Populate default subvariants from Master Catalog products for this series strictly
     const masterProds = MASTER_PRODUCTS.filter(

@@ -73,6 +73,7 @@ export default function App() {
             periodRange={store.periodRange}
             stockMetrics={store.stockMetrics}
             endOffset={store.endOffset}
+            dailyGoal={store.dailyGoal}
             localLeads={store.localLeads}
             staffList={store.staff}
             promoterMonthlyTargets={store.promoterMonthlyTargets}
