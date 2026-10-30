@@ -137,6 +137,59 @@ export function canonicalizeMainPushRecord<T>(
   return result;
 }
 
+export function canonicalizeMainPushTargetState(
+  targets: Record<string, number> | undefined,
+  variants: Record<string, string[]> | undefined,
+  dividers: Record<string, number> | undefined
+): {
+  targets: Record<string, number>;
+  variants: Record<string, string[]>;
+  dividers: Record<string, number>;
+} {
+  const merged: {
+    targets: Record<string, number>;
+    variants: Record<string, string[]>;
+    dividers: Record<string, number>;
+    canonicalNames: Record<string, boolean>;
+  } = {
+    targets: {},
+    variants: {},
+    dividers: {},
+    canonicalNames: {},
+  };
+
+  Object.entries(targets || {}).forEach(([rawName, target]) => {
+    const name = canonicalMainPushName(rawName);
+    const id = getMainPushId(name);
+    const isCanonical = rawName.trim() === name;
+    const existingName = Object.keys(merged.targets).find((key) => getMainPushId(key) === id);
+    const outputName = existingName || name;
+
+    if (!existingName || isCanonical || !merged.canonicalNames[id]) {
+      merged.targets[outputName] = Math.max(merged.targets[outputName] || 0, Number(target) || 0);
+    } else {
+      merged.targets[outputName] = Math.max(merged.targets[outputName], Number(target) || 0);
+    }
+
+    const rawVariants = variants?.[rawName] || variants?.[name] || [];
+    merged.variants[outputName] = Array.from(
+      new Set([...(merged.variants[outputName] || []), ...rawVariants])
+    );
+
+    const divider = dividers?.[rawName] ?? dividers?.[name];
+    if (divider !== undefined && (!merged.canonicalNames[id] || isCanonical)) {
+      merged.dividers[outputName] = Math.max(1, Math.round(divider));
+    }
+    if (isCanonical) merged.canonicalNames[id] = true;
+  });
+
+  return {
+    targets: merged.targets,
+    variants: merged.variants,
+    dividers: merged.dividers,
+  };
+}
+
 // The live promoter roster. The store keeps this in sync so every report indexes
 // promoters the same way (reports used to assume the 3 default names and
 // crashed or dropped sales once the roster was customised).
