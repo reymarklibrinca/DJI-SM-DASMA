@@ -64,6 +64,19 @@ export function canonicalMainPushName(name: string): string {
   return MAIN_PUSH_NAME_ALIASES[trimmed.toUpperCase()] || trimmed;
 }
 
+export function canonicalizeMainPushRecord<T>(
+  record: Record<string, T> | undefined
+): Record<string, T> {
+  const result: Record<string, T> = {};
+  Object.entries(record || {}).forEach(([rawName, value]) => {
+    const name = canonicalMainPushName(rawName);
+    if (!(name in result) || name === rawName) {
+      result[name] = value;
+    }
+  });
+  return result;
+}
+
 // The live promoter roster. The store keeps this in sync so every report indexes
 // promoters the same way (reports used to assume the 3 default names and
 // crashed or dropped sales once the roster was customised).
@@ -923,36 +936,9 @@ export function calculateMainPushBreakdown(
           'LITO X1 SERIES': 15,
           'MINI 5 PRO SERIES': 9,
         };
-  const canonicalTargets = Object.entries(targetMap).reduce<Record<string, number>>(
-    (result, [name, target]) => {
-      const canonicalName = canonicalMainPushName(name);
-      if (!(canonicalName in result) || canonicalName === name) {
-        result[canonicalName] = target;
-      }
-      return result;
-    },
-    {}
-  );
-  const canonicalVariants = Object.entries(customVariants || {}).reduce<Record<string, string[]>>(
-    (result, [name, variants]) => {
-      const canonicalName = canonicalMainPushName(name);
-      if (!(canonicalName in result) || canonicalName === name) {
-        result[canonicalName] = variants;
-      }
-      return result;
-    },
-    {}
-  );
-  const canonicalDividers = Object.entries(customDividers || {}).reduce<Record<string, number>>(
-    (result, [name, divider]) => {
-      const canonicalName = canonicalMainPushName(name);
-      if (!(canonicalName in result) || canonicalName === name) {
-        result[canonicalName] = divider;
-      }
-      return result;
-    },
-    {}
-  );
+  const canonicalTargets = canonicalizeMainPushRecord(targetMap);
+  const canonicalVariants = canonicalizeMainPushRecord(customVariants);
+  const canonicalDividers = canonicalizeMainPushRecord(customDividers);
 
   const defaultPromoterCount = Math.max(staffList.length, 1);
 

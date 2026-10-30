@@ -16,6 +16,7 @@ import {
   aggregateSales,
   calculateStockMetrics,
   calculatePercentChange,
+  canonicalizeMainPushRecord,
   DEFAULT_MAIN_PUSH_VARIANTS, setActiveStaff } from '../utils/calculations';
 
 const STORAGE_KEY = 'oh2';
@@ -57,9 +58,13 @@ export function useDjiStore() {
           leads: parsed.leads || {},
           final: parsed.final || {},
           pm: parsed.pm || defaultLocalState.pm,
-          mainPushTargets: parsed.mainPushTargets !== undefined ? parsed.mainPushTargets : DEFAULT_MAIN_PUSH_TARGETS,
-          mainPushVariants: parsed.mainPushVariants !== undefined ? parsed.mainPushVariants : DEFAULT_MAIN_PUSH_VARIANTS,
-          mainPushDividers: parsed.mainPushDividers || {},
+          mainPushTargets: parsed.mainPushTargets !== undefined
+            ? canonicalizeMainPushRecord(parsed.mainPushTargets)
+            : DEFAULT_MAIN_PUSH_TARGETS,
+          mainPushVariants: parsed.mainPushVariants !== undefined
+            ? canonicalizeMainPushRecord(parsed.mainPushVariants)
+            : DEFAULT_MAIN_PUSH_VARIANTS,
+          mainPushDividers: canonicalizeMainPushRecord(parsed.mainPushDividers),
           inventoryUnits: Array.isArray(parsed.inventoryUnits) ? parsed.inventoryUnits : undefined,
           hasCustomInventory: typeof parsed.hasCustomInventory === 'boolean' ? parsed.hasCustomInventory : false,
           staff: Array.isArray(parsed.staff) && parsed.staff.length > 0 ? parsed.staff : DEFAULT_STAFF,
@@ -1028,11 +1033,11 @@ export function useDjiStore() {
       setLocalData((prev) => {
         const updated = {
           ...prev,
-          mainPushTargets: {
-            ...newTargets,
-          },
-          ...(newVariants ? { mainPushVariants: { ...newVariants } } : {}),
-          ...(newDividers !== undefined ? { mainPushDividers: { ...newDividers } } : {}),
+          mainPushTargets: canonicalizeMainPushRecord(newTargets),
+          ...(newVariants ? { mainPushVariants: canonicalizeMainPushRecord(newVariants) } : {}),
+          ...(newDividers !== undefined
+            ? { mainPushDividers: canonicalizeMainPushRecord(newDividers) }
+            : {}),
         };
         saveToStorage(updated);
         return updated;

@@ -1,5 +1,5 @@
 import { LocalStorageState, SaleTuple, UnitTuple } from '../types';
-import { DEFAULT_MAIN_PUSH_VARIANTS } from './calculations';
+import { DEFAULT_MAIN_PUSH_VARIANTS, canonicalizeMainPushRecord } from './calculations';
 
 /**
  * Generate a deterministic unique key for a sale tuple to deduplicate across
@@ -288,23 +288,18 @@ export function reconcileStoreState(
   };
 
   // 5. Main Push Targets Reconcile
-  const mergedTargets = reconcileMainPushTargets(
-    local.mainPushTargets,
-    remote.mainPushTargets,
-    preferLocal
+  const mergedTargets = canonicalizeMainPushRecord(
+    reconcileMainPushTargets(local.mainPushTargets, remote.mainPushTargets, preferLocal)
   );
 
   // 5b. Main Push Dividers Reconcile
-  const mergedDividers = reconcileMainPushDividers(
-    local.mainPushDividers,
-    remote.mainPushDividers,
-    preferLocal
+  const mergedDividers = canonicalizeMainPushRecord(
+    reconcileMainPushDividers(local.mainPushDividers, remote.mainPushDividers, preferLocal)
   );
 
   // 6. Main Push Variants Reconcile (preserves subvariants)
-  const mergedVariants = reconcileMainPushVariants(
-    local.mainPushVariants,
-    remote.mainPushVariants
+  const mergedVariants = canonicalizeMainPushRecord(
+    reconcileMainPushVariants(local.mainPushVariants, remote.mainPushVariants)
   );
 
   // 7. Inventory Units Reconcile

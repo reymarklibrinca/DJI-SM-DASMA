@@ -22,6 +22,7 @@ import { DEFAULT_MAIN_PUSH_TARGETS } from '../hooks/useDjiStore';
 import {
   KNOWN_SERIES_VARIANTS,
   DEFAULT_MAIN_PUSH_VARIANTS,
+  canonicalizeMainPushRecord,
   StockSubvariantItem,
   getAllStockSubvariants,
   getStockSubvariantsForTarget,
@@ -142,8 +143,8 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
   // whatever targets or subvariants the user is actively typing!
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
-      setDraftTargets({ ...currentTargets });
-      setDraftDividers({ ...currentDividers });
+      setDraftTargets(canonicalizeMainPushRecord(currentTargets));
+      setDraftDividers(canonicalizeMainPushRecord(currentDividers));
       setErrorMessage(null);
       setSearchQueries({});
       setNewSubvariantInputs({});
@@ -152,12 +153,13 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
       const initialCatalogs: Record<string, boolean> = {};
       const initialSeriesMap: Record<string, boolean> = {};
 
-      Object.keys(currentTargets).forEach((series) => {
+      Object.keys(canonicalizeMainPushRecord(currentTargets)).forEach((series) => {
         initialCatalogs[series] = false;
 
         // Pre-select variants based on currentVariants, or defaults, or known variants
-        if (currentVariants[series] && Array.isArray(currentVariants[series])) {
-          initialVariants[series] = [...currentVariants[series]];
+        const canonicalVariants = canonicalizeMainPushRecord(currentVariants);
+        if (canonicalVariants[series] && Array.isArray(canonicalVariants[series])) {
+          initialVariants[series] = [...canonicalVariants[series]];
         } else if (DEFAULT_MAIN_PUSH_VARIANTS[series]) {
           initialVariants[series] = [...DEFAULT_MAIN_PUSH_VARIANTS[series]];
         } else {
@@ -415,7 +417,11 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
 
   // Save changes
   const handleSave = () => {
-    onSaveTargets(draftTargets, draftVariants, draftDividers);
+    onSaveTargets(
+      canonicalizeMainPushRecord(draftTargets),
+      canonicalizeMainPushRecord(draftVariants),
+      canonicalizeMainPushRecord(draftDividers)
+    );
     onClose();
   };
 
