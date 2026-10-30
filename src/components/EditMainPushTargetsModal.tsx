@@ -22,7 +22,7 @@ import { DEFAULT_MAIN_PUSH_TARGETS } from '../hooks/useDjiStore';
 import {
   KNOWN_SERIES_VARIANTS,
   DEFAULT_MAIN_PUSH_VARIANTS,
-  canonicalizeMainPushRecord,
+  canonicalizeMainPushTargetState,
   StockSubvariantItem,
   getAllStockSubvariants,
   getStockSubvariantsForTarget,
@@ -145,23 +145,14 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
   // whatever targets or subvariants the user is actively typing!
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
-      const cleanTargets: Record<string, number> = {};
-      const cleanDividers: Record<string, number> = {};
-      const cleanVariants: Record<string, string[]> = {};
-      const seen = new Map<string, string>();
-
-      Object.entries(currentTargets).forEach(([rawName, target]) => {
-        const canonName = canonicalMainPushName(rawName);
-        const normKey = normalizeSeriesKey(canonName);
-        const existingName = seen.get(normKey);
-        if (!existingName) {
-          seen.set(normKey, canonName);
-          cleanTargets[canonName] = target;
-          cleanDividers[canonName] = currentDividers[rawName] ?? currentDividers[canonName] ?? 3;
-        } else {
-          cleanTargets[existingName] = Math.max(cleanTargets[existingName], target);
-        }
-      });
+      const cleanState = canonicalizeMainPushTargetState(
+        currentTargets,
+        currentVariants,
+        currentDividers
+      );
+      const cleanTargets = cleanState.targets;
+      const cleanDividers = cleanState.dividers;
+      const cleanVariants = cleanState.variants;
       setDraftTargets(cleanTargets);
       setDraftDividers(cleanDividers);
       setErrorMessage(null);
@@ -175,9 +166,7 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
         initialCatalogs[series] = false;
 
         // Pre-select variants based on currentVariants, or defaults, or known variants
-        const rawMatch = currentVariants[series] || Object.entries(currentVariants).find(
-          ([k]) => normalizeSeriesKey(canonicalMainPushName(k)) === normalizeSeriesKey(series)
-        )?.[1];
+        const rawMatch = cleanVariants[series];
         if (rawMatch && Array.isArray(rawMatch)) {
           cleanVariants[series] = Array.from(new Set(rawMatch));
         } else if (DEFAULT_MAIN_PUSH_VARIANTS[series]) {
@@ -444,11 +433,12 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
 
   // Save changes
   const handleSave = () => {
-    onSaveTargets(
-      canonicalizeMainPushRecord(draftTargets),
-      canonicalizeMainPushRecord(draftVariants),
-      canonicalizeMainPushRecord(draftDividers)
+    const cleanState = canonicalizeMainPushTargetState(
+      draftTargets,
+      draftVariants,
+      draftDividers
     );
+    onSaveTargets(cleanState.targets, cleanState.variants, cleanState.dividers);
     onClose();
   };
 
