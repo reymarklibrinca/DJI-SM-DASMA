@@ -1,4 +1,4 @@
-import { DJI_DATA, DAYS_OF_WEEK } from '../data/initialData';
+import { DJI_DATA, DAYS_OF_WEEK, MASTER_SERIES_LIST } from '../data/initialData';
 import { AggregatedData, PeriodRange, SaleTuple, StockSeriesCover, UnitTuple, VariantBreakdown } from '../types';
 
 export const START_DATE = new Date(DJI_DATA.start + 'T00:00:00');
@@ -67,19 +67,21 @@ const MAIN_PUSH_NAME_ALIASES: Record<string, string> = {
   'POCKET 4 SERIES': 'OSMO POCKET 4 SERIES',
   'OSMO POCKET 4': 'OSMO POCKET 4 SERIES',
   'OSMO POCKET 4 SERIES': 'OSMO POCKET 4 SERIES',
-  'POCKET 4P': 'OSMO POCKET 4 SERIES',
-  'POCKET 4P SERIES': 'OSMO POCKET 4 SERIES',
-  'OSMO POCKET 4P': 'OSMO POCKET 4 SERIES',
-  'OSMO POCKET 4P SERIES': 'OSMO POCKET 4 SERIES',
+  'POCKET 4P': 'OSMO POCKET 4P SERIES',
+  'POCKET 4P SERIES': 'OSMO POCKET 4P SERIES',
+  'OSMO POCKET 4P': 'OSMO POCKET 4P SERIES',
+  'OSMO POCKET 4P SERIES': 'OSMO POCKET 4P SERIES',
 
-  'NEO': 'NEO 2 SERIES',
-  'NEO SERIES': 'NEO 2 SERIES',
+  'NEO': 'NEO SERIES',
+  'NEO SERIES': 'NEO SERIES',
   'NEO 2': 'NEO 2 SERIES',
   'NEO 2 SERIES': 'NEO 2 SERIES',
 
   'MINI 5 PRO': 'MINI 5 PRO SERIES',
   'MINI 5 PRO SERIES': 'MINI 5 PRO SERIES',
 
+  'LITO 1': 'LITO 1 SERIES',
+  'LITO 1 SERIES': 'LITO 1 SERIES',
   'LITO X1': 'LITO X1 SERIES',
   'LITO X1 SERIES': 'LITO X1 SERIES',
 
@@ -91,7 +93,16 @@ const MAIN_PUSH_NAME_ALIASES: Record<string, string> = {
 
   'AVATA 360': 'AVATA 360 SERIES',
   'AVATA 360 SERIES': 'AVATA 360 SERIES',
+  'OSMO ACTION SERIES': 'OSMO ACTION 6 SERIES',
 };
+
+const CANONICAL_SERIES_BY_KEY = new Map<string, string>();
+for (const series of [...MASTER_SERIES_LIST, ...DJI_DATA.ser]) {
+  const key = normalizeSeriesKey(series);
+  if (key && !CANONICAL_SERIES_BY_KEY.has(key)) {
+    CANONICAL_SERIES_BY_KEY.set(key, series);
+  }
+}
 
 export function canonicalMainPushName(name: string): string {
   if (!name) return '';
@@ -99,18 +110,18 @@ export function canonicalMainPushName(name: string): string {
   const upper = trimmed.toUpperCase();
   if (MAIN_PUSH_NAME_ALIASES[upper]) return MAIN_PUSH_NAME_ALIASES[upper];
 
-  // Fuzzy check based on normalized key
   const norm = normalizeSeriesKey(name);
-  if (norm === 'ACTION6' || norm === 'OA') return 'OSMO ACTION 6 SERIES';
-  if (norm === 'POCKET4' || norm === 'POCKET4P' || norm === 'POCKET') return 'OSMO POCKET 4 SERIES';
-  if (norm === 'NEO2' || norm === 'NEO') return 'NEO 2 SERIES';
-  if (norm === 'MINI5PRO' || norm === 'MINI5') return 'MINI 5 PRO SERIES';
-  if (norm === 'LITOX1' || norm === 'LITO1') return 'LITO X1 SERIES';
-  if (norm === 'AIR3S' || norm === 'AIR3') return 'AIR 3S SERIES';
-  if (norm === 'MAVIC4PRO' || norm === 'MAVIC4') return 'MAVIC 4 PRO SERIES';
-  if (norm === 'AVATA360') return 'AVATA 360 SERIES';
+  return CANONICAL_SERIES_BY_KEY.get(norm) || trimmed;
+}
 
-  return trimmed;
+/**
+ * Stable identity for a Main Push family. Display labels may change, but this
+ * ID is what prevents aliases from becoming separate target entries.
+ */
+export function getMainPushId(name: string): string {
+  const canonicalName = canonicalMainPushName(name).toUpperCase();
+  const normalized = normalizeSeriesKey(canonicalName);
+  return `main-push:${normalized.replace(/[^A-Z0-9]+/g, '-').toLowerCase()}`;
 }
 
 export function canonicalizeMainPushRecord<T>(
