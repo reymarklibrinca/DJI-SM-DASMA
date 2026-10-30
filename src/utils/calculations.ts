@@ -1,4 +1,4 @@
-import { DJI_DATA, DAYS_OF_WEEK } from '../data/initialData';
+import { DJI_DATA, DAYS_OF_WEEK, MASTER_SERIES_LIST } from '../data/initialData';
 import { AggregatedData, PeriodRange, SaleTuple, StockSeriesCover, UnitTuple, VariantBreakdown } from '../types';
 
 export const START_DATE = new Date(DJI_DATA.start + 'T00:00:00');
@@ -102,6 +102,14 @@ const MAIN_PUSH_NAME_ALIASES: Record<string, string> = {
   'OSMO ACTION SERIES': 'OSMO ACTION 6 SERIES',
 };
 
+const CANONICAL_SERIES_BY_KEY = new Map<string, string>();
+for (const series of [...MASTER_SERIES_LIST, ...DJI_DATA.ser]) {
+  const key = normalizeSeriesKey(series);
+  if (key && !CANONICAL_SERIES_BY_KEY.has(key)) {
+    CANONICAL_SERIES_BY_KEY.set(key, series);
+  }
+}
+
 export function canonicalMainPushName(name: string): string {
   if (!name) return '';
   const trimmed = name.trim();
@@ -119,7 +127,7 @@ export function canonicalMainPushName(name: string): string {
   if (norm === 'MAVIC4PRO' || norm === 'MAVIC4') return 'MAVIC 4 PRO SERIES';
   if (norm === 'AVATA360') return 'AVATA 360 SERIES';
 
-  return trimmed;
+  return CANONICAL_SERIES_BY_KEY.get(norm) || trimmed;
 }
 
 /**
@@ -128,10 +136,8 @@ export function canonicalMainPushName(name: string): string {
  */
 export function getMainPushId(name: string): string {
   const canonicalName = canonicalMainPushName(name).toUpperCase();
-  const entry = Object.entries(MAIN_PUSH_CANONICAL_NAMES).find(
-    ([, value]) => value === canonicalName
-  );
-  return `main-push:${entry ? entry[0].toLowerCase() : canonicalName.replace(/[^A-Z0-9]+/g, '-').toLowerCase()}`;
+  const normalized = normalizeSeriesKey(canonicalName);
+  return `main-push:${normalized.replace(/[^A-Z0-9]+/g, '-').toLowerCase()}`;
 }
 
 export function canonicalizeMainPushRecord<T>(

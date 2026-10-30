@@ -19,6 +19,7 @@ import { DJI_DATA } from '../data/initialData';
 import {
   dayOffsetToDate,
   canonicalMainPushName,
+  getMainPushId,
   isHardwareUnitItem,
   normalizeSeriesKey,
   normalizeProductKey,
@@ -305,6 +306,7 @@ export const SOURCE_DATA: {
 };
 
 export interface SeriesConfigItem {
+  id: string;
   u: string; // unit e.g. 'Drone', 'Handheld', 'Audio'
   n: string; // series name
   t: number; // target number
@@ -399,6 +401,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
       const name = canonicalMainPushName(s.name);
       const existing = byName.get(name);
       byName.set(name, {
+        id: getMainPushId(name),
         u: s.unit,
         n: name,
         t: existing ? Math.max(existing.t, s.store_target) : s.store_target,
@@ -424,6 +427,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
         const existing = previousByName.get(normKey);
         previousByName.set(normKey, {
           ...item,
+          id: getMainPushId(name),
           n: name,
           t: existing ? Math.max(existing.t, item.t) : item.t,
           s: staff.map((_, i) => Math.max(existing?.s[i] || 0, item.s[i] || 0)),
@@ -461,6 +465,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
           ...(existing || {
             u: catalogItem ? catalogItem.u : 'Drone',
             n: name,
+            id: getMainPushId(name),
             t: target,
             m: 'total' as const,
             div: N,
@@ -714,6 +719,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
   // Reset to Source
   const handleResetToSource = () => {
     const sourceCfg: SeriesConfigItem[] = SOURCE_DATA.series.map((s) => ({
+      id: getMainPushId(s.name),
       u: s.unit,
       n: s.name,
       t: s.store_target,
@@ -1012,7 +1018,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
                       {group.items.map((d) => {
                         const c = calc(d);
                         return (
-                          <div key={d.n} className="py-2.5 first:pt-1 last:pb-1">
+                          <div key={d.id} className="py-2.5 first:pt-1 last:pb-1">
                             <div className="flex justify-between items-baseline gap-2">
                               <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
                                 {d.n}
@@ -1116,7 +1122,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
                     const sh = shares(d);
                     return (
                       <tr
-                        key={d.n}
+                        key={d.id}
                         className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                       >
                         <td className="py-2.5 px-2.5 font-bold text-slate-900 dark:text-slate-100 min-w-[140px]">
@@ -1593,6 +1599,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
                       setDraft((prev) => [
                         ...prev,
                         {
+                          id: getMainPushId(selectedAddCatalog),
                           u: cat ? cat.u : 'Handheld',
                           n: selectedAddCatalog,
                           t: 6,
@@ -1633,6 +1640,7 @@ export const MainPushCard: React.FC<MainPushCardProps> = ({
                     setDraft((prev) => [
                       ...prev,
                       {
+                        id: getMainPushId(nm),
                         u: 'Handheld',
                         c: true,
                         n: nm,
