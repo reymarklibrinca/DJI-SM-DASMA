@@ -44,9 +44,14 @@ import {
   Edit2,
   Layers,
   FileSpreadsheet,
+  Zap,
+  Flame,
+  Activity,
+  AlertCircle,
 } from 'lucide-react';
 import { DJI_DATA } from '../data/initialData';
-import { PeriodRange, SaleTuple, StockSeriesCover } from '../types';
+import { PeriodRange, SaleTuple, StockSeriesCover, UnitTuple } from '../types';
+import octoberSalesData from '../data/octoberSales.json';
 import {
   aggregateSales,
   calculateAttachRate,
@@ -78,6 +83,7 @@ interface DashboardTabProps {
     totalUnitsInStock: number;
     totalSrpValue: number;
   };
+  activeUnits?: UnitTuple[];
   endOffset: number;
   dailyGoal?: number;
   localLeads: Record<number, Record<string, [number, number, number]>>;
@@ -104,6 +110,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   sales,
   periodRange,
   stockMetrics,
+  activeUnits,
   endOffset,
   dailyGoal = 232258,
   localLeads,
