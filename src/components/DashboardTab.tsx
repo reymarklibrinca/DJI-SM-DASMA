@@ -148,7 +148,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   };
 
   // Inventory Watch state & persistence
-  const [invFilter, setInvFilter] = useState<'all' | 'out_of_stock' | 'low_stock' | 'logistics'>('all');
+  const [invFilter, setInvFilter] = useState<'attention' | 'fast_moving' | 'all'>('attention');
   const [invSearch, setInvSearch] = useState('');
   const [customInvNotes, setCustomInvNotes] = useState<InventoryWatchItem[]>(() => {
     try {
@@ -270,20 +270,55 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return combined.filter((item) => !dismissedItemIds.includes(item.id));
   }, [customInvNotes, dismissedItemIds]);
 
+  const soldInventoryItems = useMemo(
+    () => allInventoryItems.filter((item) => (item.unitsSoldPastDays ?? 0) > 0),
+    [allInventoryItems]
+  );
+
+  const fastMovingItems = useMemo(
+    () =>
+      soldInventoryItems
+        .filter((item) => item.isFastMoving || item.type === 'fast_moving')
+        .sort((a, b) => (b.salesVelocityPerDay ?? 0) - (a.salesVelocityPerDay ?? 0)),
+    [soldInventoryItems]
+  );
+
+  const attentionItems = useMemo(
+    () =>
+      soldInventoryItems
+        .filter(
+          (item) =>
+            item.unitsOnHand === 0 ||
+            item.type === 'low_stock' ||
+            (item.depletionDaysRemaining !== null &&
+              item.depletionDaysRemaining !== undefined &&
+              item.depletionDaysRemaining <= 45)
+        )
+        .sort((a, b) => {
+          const aDays = a.depletionDaysRemaining ?? Number.POSITIVE_INFINITY;
+          const bDays = b.depletionDaysRemaining ?? Number.POSITIVE_INFINITY;
+          return aDays - bDays;
+        }),
+    [soldInventoryItems]
+  );
+
   const invCounts = useMemo(() => {
     return {
-      all: allInventoryItems.length,
-      outOfStock: allInventoryItems.filter((i) => i.type === 'out_of_stock' || i.unitsOnHand === 0).length,
-      lowStock: allInventoryItems.filter((i) => i.type === 'low_stock' && i.unitsOnHand > 0).length,
-      logistics: allInventoryItems.filter((i) => i.type === 'logistics' || i.type === 'audit').length,
+      sold: soldInventoryItems.length,
+      attention: attentionItems.length,
+      fastMoving: fastMovingItems.length,
+      outOfStock: attentionItems.filter((i) => i.unitsOnHand === 0).length,
     };
-  }, [allInventoryItems]);
+  }, [attentionItems, fastMovingItems, soldInventoryItems]);
+
+  const soonestDepletion = attentionItems.find(
+    (item) => item.depletionDaysRemaining !== null && item.depletionDaysRemaining !== undefined
+  );
 
   const filteredInventoryItems = useMemo(() => {
-    return allInventoryItems.filter((item) => {
-      if (invFilter === 'out_of_stock' && item.type !== 'out_of_stock' && item.unitsOnHand > 0) return false;
-      if (invFilter === 'low_stock' && (item.type !== 'low_stock' || item.unitsOnHand === 0)) return false;
-      if (invFilter === 'logistics' && item.type !== 'logistics' && item.type !== 'audit') return false;
+    return soldInventoryItems.filter((item) => {
+      if (invFilter === 'attention' && !attentionItems.some((candidate) => candidate.id === item.id)) return false;
+      if (invFilter === 'fast_moving' && !fastMovingItems.some((candidate) => candidate.id === item.id)) return false;
 
       if (invSearch.trim()) {
         const query = invSearch.toLowerCase().trim();
@@ -295,7 +330,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       }
       return true;
     });
-  }, [allInventoryItems, invFilter, invSearch]);
+  }, [attentionItems, fastMovingItems, invFilter, invSearch, soldInventoryItems]);
 
   // Live Weather for SM City Dasmariñas, Cavite
   const [weatherData, setWeatherData] = useState<WeatherData>(DEFAULT_DASMARINAS_WEATHER);
@@ -832,95 +867,80 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             {/* VIEW 1: INVENTORY WATCH ONLY */}
             {watchMode === 'inventory' && (
               <div className="space-y-4">
-                {/* Inventory Health Quick Metrics */}
+                {/* Actionable Inventory Metrics */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200">
-                    <div className="text-[11px] font-semibold text-rose-700">Out of Stock (0)</div>
+                    <div className="text-[11px] font-semibold text-rose-700">Needs attention</div>
                     <div className="text-lg font-black text-rose-950 mt-0.5">
-                      {invCounts.outOfStock} SKUs
+                      {invCounts.attention} products
                     </div>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200">
-                    <div className="text-[11px] font-semibold text-amber-800">Low Stock (≤2)</div>
+                    <div className="text-[11px] font-semibold text-amber-800">Fast moving</div>
                     <div className="text-lg font-black text-amber-950 mt-0.5">
-                      {invCounts.lowStock} SKUs
+                      {invCounts.fastMoving} products
                     </div>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="text-[11px] font-semibold text-slate-600">Total Units in Stock</div>
+                    <div className="text-[11px] font-semibold text-slate-600">Sold recently</div>
                     <div className="text-lg font-black text-slate-900 mt-0.5">
-                      {stockMetrics.totalUnitsInStock} units
+                      {invCounts.sold} products
                     </div>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="text-[11px] font-semibold text-slate-600">Stock Valuation</div>
-                    <div className="text-sm font-black text-blue-700 mt-1 truncate">
-                      {formatCurrency(stockMetrics.totalSrpValue)}
+                    <div className="text-[11px] font-semibold text-slate-600">Soonest depletion</div>
+                    <div className="text-lg font-black text-slate-900 mt-0.5">
+                      {soonestDepletion?.depletionDaysRemaining !== undefined &&
+                      soonestDepletion?.depletionDaysRemaining !== null
+                        ? soonestDepletion.depletionDaysRemaining === 0
+                          ? 'Now'
+                          : `${Math.ceil(soonestDepletion.depletionDaysRemaining)}d`
+                        : '—'}
                     </div>
                   </div>
                 </div>
 
-                {/* Filter Pills, Search Bar & Add Button */}
+                {/* Action Filters & Search */}
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => setInvFilter('all')}
+                        onClick={() => setInvFilter('attention')}
                         className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                          invFilter === 'all'
+                          invFilter === 'attention'
                             ? 'bg-slate-900 text-white'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
-                        All Stock ({invCounts.all})
+                        Needs attention ({invCounts.attention})
                       </button>
                       <button
                         type="button"
-                        onClick={() => setInvFilter('out_of_stock')}
+                        onClick={() => setInvFilter('fast_moving')}
                         className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                          invFilter === 'out_of_stock'
-                            ? 'bg-rose-600 text-white'
-                            : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'
-                        }`}
-                      >
-                        Out of Stock ({invCounts.outOfStock})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setInvFilter('low_stock')}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                          invFilter === 'low_stock'
+                          invFilter === 'fast_moving'
                             ? 'bg-amber-600 text-white'
                             : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
                         }`}
                       >
-                        Low Stock ({invCounts.lowStock})
+                        Fast moving ({invCounts.fastMoving})
                       </button>
                       <button
                         type="button"
-                        onClick={() => setInvFilter('logistics')}
+                        onClick={() => setInvFilter('all')}
                         className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                          invFilter === 'logistics'
+                          invFilter === 'all'
                             ? 'bg-blue-600 text-white'
                             : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200'
                         }`}
                       >
-                        Logistics ({invCounts.logistics})
+                        All recent sellers ({invCounts.sold})
                       </button>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setIsAddingInvNote(!isAddingInvNote)}
-                      className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
-                    >
-                      {isAddingInvNote ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                      <span>{isAddingInvNote ? 'Cancel' : '+ Stock Note'}</span>
-                    </button>
                   </div>
 
                   {/* Search Input */}
@@ -928,7 +948,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      placeholder="Search stock alerts (e.g., OM8, Pocket 3, Air 3S, Mic 2, battery)..."
+                      placeholder="Search recent sellers..."
                       value={invSearch}
                       onChange={(e) => setInvSearch(e.target.value)}
                       className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-amber-500"
@@ -944,77 +964,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     )}
                   </div>
                 </div>
-
-                {/* Collapsible Add Stock Note Form */}
-                {isAddingInvNote && (
-                  <form
-                    onSubmit={handleAddInvNote}
-                    className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-200 space-y-2.5 animate-in fade-in duration-150 text-xs"
-                  >
-                    <div className="font-bold text-amber-900 flex items-center gap-1.5 border-b border-amber-200 pb-1.5">
-                      <Package className="w-3.5 h-3.5 text-amber-700" />
-                      <span>Record Floor Stock Memo / Customer Hold</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div className="sm:col-span-2">
-                        <label className="block text-[10px] font-bold text-amber-900 mb-0.5">
-                          SKU / Product Name
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Osmo Action 5 Pro Standard Combo"
-                          value={newInvSku}
-                          onChange={(e) => setNewInvSku(e.target.value)}
-                          className="w-full px-2.5 py-1 bg-white border border-amber-300 rounded-md text-xs focus:outline-hidden focus:ring-1 focus:ring-amber-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-amber-900 mb-0.5">
-                          Units on Hand
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={newInvUnits}
-                          onChange={(e) => setNewInvUnits(Number(e.target.value))}
-                          className="w-full px-2.5 py-1 bg-white border border-amber-300 rounded-md text-xs focus:outline-hidden focus:ring-1 focus:ring-amber-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-amber-900 mb-0.5">
-                        Stock Observation / Notes
-                      </label>
-                      <textarea
-                        required
-                        rows={2}
-                        placeholder="e.g. Only 1 unit left on shelf. Customer reservation holds until 5:00 PM."
-                        value={newInvSummary}
-                        onChange={(e) => setNewInvSummary(e.target.value)}
-                        className="w-full px-2.5 py-1 bg-white border border-amber-300 rounded-md text-xs focus:outline-hidden focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
-
-                    <div className="flex justify-end gap-1.5 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setIsAddingInvNote(false)}
-                        className="px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-200 rounded-md cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-xs font-bold cursor-pointer"
-                      >
-                        Save Stock Note
-                      </button>
-                    </div>
-                  </form>
-                )}
 
                 {/* Active Undo Banner */}
                 {lastDeletedItem && (
@@ -1135,16 +1084,36 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               </button>
                             </div>
 
-                            <div className="font-bold text-xs text-slate-900 mb-1 leading-snug">
+                            <div className="font-bold text-xs text-slate-900 mb-2 leading-snug">
                               {item.skuName}
                             </div>
 
-                            <div className="text-xs text-slate-700 leading-relaxed">
-                              {item.summary}
+                            <div className="grid grid-cols-3 gap-2 text-[11px] mb-2.5">
+                              <div>
+                                <div className="text-slate-500">Sold</div>
+                                <div className="font-bold text-slate-900">
+                                  {item.unitsSoldPastDays ?? 0} units
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-slate-500">On hand</div>
+                                <div className="font-bold text-slate-900">{item.unitsOnHand} units</div>
+                              </div>
+                              <div>
+                                <div className="text-slate-500">Cover</div>
+                                <div className="font-bold text-slate-900">
+                                  {item.depletionDaysRemaining === 0
+                                    ? 'Depleted'
+                                    : item.depletionDaysRemaining !== null &&
+                                      item.depletionDaysRemaining !== undefined
+                                    ? `${Math.ceil(item.depletionDaysRemaining)}d`
+                                    : '—'}
+                                </div>
+                              </div>
                             </div>
 
                             {item.actionGuidance && (
-                              <div className="mt-2.5 px-2.5 py-1.5 rounded-lg bg-white/90 border border-slate-200/80 text-[11px] font-semibold text-slate-800 flex items-center gap-1.5 shadow-2xs">
+                              <div className="px-2.5 py-1.5 rounded-lg bg-white/90 border border-slate-200/80 text-[11px] font-semibold text-slate-800 flex items-center gap-1.5 shadow-2xs">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                                 <span>{item.actionGuidance}</span>
                               </div>
