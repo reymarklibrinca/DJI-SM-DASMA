@@ -22,6 +22,7 @@ import { DEFAULT_MAIN_PUSH_TARGETS } from '../hooks/useDjiStore';
 import {
   KNOWN_SERIES_VARIANTS,
   DEFAULT_MAIN_PUSH_VARIANTS,
+  canonicalizeMainPushRecord,
   StockSubvariantItem,
   getAllStockSubvariants,
   getStockSubvariantsForTarget,
@@ -161,7 +162,6 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
           cleanTargets[existingName] = Math.max(cleanTargets[existingName], target);
         }
       });
-
       setDraftTargets(cleanTargets);
       setDraftDividers(cleanDividers);
       setErrorMessage(null);
@@ -178,7 +178,6 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
         const rawMatch = currentVariants[series] || Object.entries(currentVariants).find(
           ([k]) => normalizeSeriesKey(canonicalMainPushName(k)) === normalizeSeriesKey(series)
         )?.[1];
-
         if (rawMatch && Array.isArray(rawMatch)) {
           cleanVariants[series] = Array.from(new Set(rawMatch));
         } else if (DEFAULT_MAIN_PUSH_VARIANTS[series]) {
@@ -445,7 +444,11 @@ export const EditMainPushTargetsModal: React.FC<EditMainPushTargetsModalProps> =
 
   // Save changes
   const handleSave = () => {
-    onSaveTargets(draftTargets, draftVariants, draftDividers);
+    onSaveTargets(
+      canonicalizeMainPushRecord(draftTargets),
+      canonicalizeMainPushRecord(draftVariants),
+      canonicalizeMainPushRecord(draftDividers)
+    );
     onClose();
   };
 

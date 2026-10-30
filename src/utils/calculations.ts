@@ -113,6 +113,18 @@ export function canonicalMainPushName(name: string): string {
   return trimmed;
 }
 
+export function canonicalizeMainPushRecord<T>(
+  record: Record<string, T> | undefined
+): Record<string, T> {
+  const result: Record<string, T> = {};
+  Object.entries(record || {}).forEach(([rawName, value]) => {
+    const name = canonicalMainPushName(rawName);
+    if (!(name in result) || name === rawName) {
+      result[name] = value;
+    }
+  });
+  return result;
+}
 
 // The live promoter roster. The store keeps this in sync so every report indexes
 // promoters the same way (reports used to assume the 3 default names and
