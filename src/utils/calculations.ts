@@ -53,6 +53,14 @@ export const ACCESSORIES_INDEX = DJI_DATA.ser.findIndex(
   (s) => s === 'ACCESSORIES' || s.includes('ACCESSORIES')
 );
 
+const MAIN_PUSH_CANONICAL_NAMES: Record<string, string> = {
+  ACTION: 'OSMO ACTION 6 SERIES',
+  POCKET: 'OSMO POCKET 4 SERIES',
+  NEO: 'NEO 2 SERIES',
+  LITO: 'LITO X1 SERIES',
+  MINI: 'MINI 5 PRO SERIES',
+};
+
 const MAIN_PUSH_NAME_ALIASES: Record<string, string> = {
   'OA': 'OSMO ACTION 6 SERIES',
   'OA SERIES': 'OSMO ACTION 6 SERIES',
@@ -91,6 +99,7 @@ const MAIN_PUSH_NAME_ALIASES: Record<string, string> = {
 
   'AVATA 360': 'AVATA 360 SERIES',
   'AVATA 360 SERIES': 'AVATA 360 SERIES',
+  'OSMO ACTION SERIES': 'OSMO ACTION 6 SERIES',
 };
 
 export function canonicalMainPushName(name: string): string {
@@ -111,6 +120,18 @@ export function canonicalMainPushName(name: string): string {
   if (norm === 'AVATA360') return 'AVATA 360 SERIES';
 
   return trimmed;
+}
+
+/**
+ * Stable identity for a Main Push family. Display labels may change, but this
+ * ID is what prevents aliases from becoming separate target entries.
+ */
+export function getMainPushId(name: string): string {
+  const canonicalName = canonicalMainPushName(name).toUpperCase();
+  const entry = Object.entries(MAIN_PUSH_CANONICAL_NAMES).find(
+    ([, value]) => value === canonicalName
+  );
+  return `main-push:${entry ? entry[0].toLowerCase() : canonicalName.replace(/[^A-Z0-9]+/g, '-').toLowerCase()}`;
 }
 
 export function canonicalizeMainPushRecord<T>(
